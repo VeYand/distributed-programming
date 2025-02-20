@@ -9,26 +9,24 @@ services:
     volumes:
       - ./services/valuator/data:/app/data
     networks:
-      - app-network
+      - service-network
 
   redis:
     image: redis:latest
     container_name: redis
-    ports:
-      - "6379:6379"
     volumes:
       - redis_data:/data
-    command: redis-server --appendonly yes
+    command: redis-server --appendonly yes --requirepass 12345Q
     healthcheck:
-      test: [ "CMD", "redis-cli", "ping" ]
+      test: [ "CMD", "redis-cli", "-a", "12345Q", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 3
     networks:
-      - app-network
+      - service-network
 
 networks:
-  app-network:
+  service-network:
 
 volumes:
   db-data:

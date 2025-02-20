@@ -15,7 +15,8 @@ import (
 
 func initRedis() *redis.Client {
 	return redis.NewClient(&redis.Options{
-		Addr: "redis:6379",
+		Addr:     "redis:6379",
+		Password: "12345Q",
 	})
 }
 
@@ -51,7 +52,7 @@ func main() {
 
 	router := setupRoutes(handler)
 
-	log.Println("Server is listening on port 8082...")
+	log.Println("Server is listening on port 8082")
 	if err := http.ListenAndServe(":8082", router); err != nil {
 		log.Fatalf("Could not start server: %v", err)
 	}

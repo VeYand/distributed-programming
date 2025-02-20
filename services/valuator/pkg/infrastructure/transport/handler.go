@@ -3,6 +3,7 @@ package transport
 import (
 	stderrors "errors"
 	"html/template"
+	"log"
 	"net/http"
 
 	"github.com/gofrs/uuid"
@@ -29,11 +30,13 @@ func NewHandler(textService service.TextService, statisticsQueryService query.St
 func (h *Handler) GetAddForm(w http.ResponseWriter, _ *http.Request) {
 	tmpl, err := template.ParseFiles("./data/html/add-form.html")
 	if err != nil {
+		log.Printf("Error parsing template: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 	err = tmpl.Execute(w, nil)
 	if err != nil {
+		log.Printf("Error executing template: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
@@ -42,6 +45,7 @@ func (h *Handler) GetAddForm(w http.ResponseWriter, _ *http.Request) {
 func (h *Handler) AddText(w http.ResponseWriter, r *http.Request) {
 	_, err := h.textService.Add(r.FormValue("text"))
 	if err != nil {
+		log.Printf("Error adding text: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
@@ -50,6 +54,7 @@ func (h *Handler) AddText(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetStatistics(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.FromString(r.FormValue("id"))
 	if err != nil {
+		log.Printf("Invalid UUID: %v", err)
 		http.Error(w, "Bad identifier", http.StatusBadRequest)
 		return
 	}
@@ -60,6 +65,7 @@ func (h *Handler) GetStatistics(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
+		log.Printf("Error getting summary: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
@@ -84,11 +90,13 @@ func (h *Handler) GetStatistics(w http.ResponseWriter, r *http.Request) {
 
 	tmpl, err := template.ParseFiles("./data/html/summary.html")
 	if err != nil {
+		log.Printf("Error parsing summary template: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 	err = tmpl.Execute(w, data)
 	if err != nil {
+		log.Printf("Error executing summary template: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
@@ -97,12 +105,14 @@ func (h *Handler) GetStatistics(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) DeleteText(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.FromString(r.FormValue("id"))
 	if err != nil {
+		log.Printf("Invalid UUID for deletion: %v", err)
 		http.Error(w, "Bad identifier", http.StatusBadRequest)
 		return
 	}
 
 	err = h.textService.Remove(id)
 	if err != nil {
+		log.Printf("Error deleting text: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
@@ -111,12 +121,14 @@ func (h *Handler) DeleteText(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) ListTexts(w http.ResponseWriter, _ *http.Request) {
 	texts, err := h.textQueryService.List()
 	if err != nil {
+		log.Printf("Error listing texts: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
 	tmpl, err := template.ParseFiles("./data/html/list.html")
 	if err != nil {
+		log.Printf("Error parsing list template: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
@@ -127,6 +139,7 @@ func (h *Handler) ListTexts(w http.ResponseWriter, _ *http.Request) {
 		Texts: texts,
 	})
 	if err != nil {
+		log.Printf("Error executing list template: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}

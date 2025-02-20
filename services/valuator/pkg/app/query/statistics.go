@@ -12,9 +12,9 @@ type StatisticsQueryService interface {
 	GetSummary(textID uuid.UUID) (TextStatistics, error)
 }
 
-func NewStatisticsQueryService(repo repository.TextReadRepository) StatisticsQueryService {
+func NewStatisticsQueryService(textReadRepository repository.TextReadRepository) StatisticsQueryService {
 	return &statisticsQueryService{
-		textReadRepository: repo,
+		textReadRepository: textReadRepository,
 	}
 }
 
