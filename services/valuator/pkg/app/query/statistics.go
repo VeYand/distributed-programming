@@ -68,12 +68,12 @@ func (queryService *statisticsQueryService) SymbolStatistics(text model.Text) Sy
 	}
 }
 
-func (queryService *statisticsQueryService) UniqueStatistic(text model.Text, allTexts []model.Text) UniqueStatistics {
+func (queryService *statisticsQueryService) UniqueStatistic(targetText model.Text, allTexts []model.Text) UniqueStatistics {
 	for _, otherText := range allTexts {
-		if otherText.ID == text.ID {
+		if otherText.ID == targetText.ID {
 			continue
 		}
-		if otherText.Value == text.Value {
+		if otherText.Value == targetText.Value {
 			return UniqueStatistics{
 				IsDuplicate: true,
 			}
