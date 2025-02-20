@@ -12,16 +12,11 @@ services:
       - service-network
 
   redis:
-    image: redis:latest
+    image: redis:alpine
     container_name: redis
     volumes:
       - redis_data:/data
-    command: redis-server --appendonly yes --requirepass 12345Q
-    healthcheck:
-      test: [ "CMD", "redis-cli", "-a", "12345Q", "ping" ]
-      interval: 10s
-      timeout: 5s
-      retries: 3
+    command: redis-server --requirepass 12345Q
     networks:
       - service-network
 
