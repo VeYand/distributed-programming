@@ -30,18 +30,18 @@ type textSerializable struct {
 }
 
 func (repository *textRepository) Store(text model.Text) error {
-	return repository.storage.Set(context.Background(), fmt.Sprintf("text: %s", uuid.UUID(text.ID).String()), textSerializable{
+	return repository.storage.Set(context.Background(), fmt.Sprintf("text:%s", uuid.UUID(text.ID).String()), textSerializable{
 		ID:    uuid.UUID(text.ID).String(),
 		Value: text.Value,
 	}, 0)
 }
 
 func (repository *textRepository) Remove(text model.Text) error {
-	return repository.storage.Delete(context.Background(), fmt.Sprintf("text: %s", uuid.UUID(text.ID).String()))
+	return repository.storage.Delete(context.Background(), fmt.Sprintf("text:%s", uuid.UUID(text.ID).String()))
 }
 
 func (repository *textRepository) Find(id model.TextID) (maybe.Maybe[model.Text], error) {
-	v, err := repository.storage.Get(context.Background(), fmt.Sprintf("text: %s", uuid.UUID(id).String()))
+	v, err := repository.storage.Get(context.Background(), fmt.Sprintf("text:%s", uuid.UUID(id).String()))
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
 			return maybe.Nothing[model.Text](), nil

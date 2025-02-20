@@ -2,7 +2,8 @@ package query
 
 import (
 	"github.com/gofrs/uuid"
-	"regexp"
+	"unicode"
+	"unicode/utf8"
 	"valuator/pkg/app/errors"
 	"valuator/pkg/app/model"
 	"valuator/pkg/app/repository"
@@ -58,9 +59,14 @@ func (queryService *statisticsQueryService) GetSummary(textID uuid.UUID) (TextSt
 func (queryService *statisticsQueryService) SymbolStatistics(text model.Text) SymbolStatistics {
 	value := text.Value
 
-	allSymbolsCount := len(value)
-	alphabetRegex := regexp.MustCompile(`[а-яА-ЯёЁa-zA-Z]`)
-	alphabetSymbolsCount := len(alphabetRegex.FindAllString(value, -1))
+	allSymbolsCount := utf8.RuneCountInString(value)
+	alphabetSymbolsCount := 0
+
+	for _, r := range value {
+		if unicode.IsLetter(r) {
+			alphabetSymbolsCount++
+		}
+	}
 
 	return SymbolStatistics{
 		AlphabetSymbolsCount: alphabetSymbolsCount,
