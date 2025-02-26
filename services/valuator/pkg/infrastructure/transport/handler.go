@@ -7,19 +7,20 @@ import (
 	"net/http"
 
 	"github.com/gofrs/uuid"
-
+	"valuator/pkg/app/data"
 	"valuator/pkg/app/errors"
 	"valuator/pkg/app/query"
 	"valuator/pkg/app/service"
+	"valuator/pkg/app/statistics"
 )
 
 type Handler struct {
 	textService       service.TextService
-	statisticsService query.StatisticsQueryService
+	statisticsService statistics.StatisticsQueryService
 	textQueryService  query.TextQueryService
 }
 
-func NewHandler(textService service.TextService, statisticsQueryService query.StatisticsQueryService, textQueryService query.TextQueryService) *Handler {
+func NewHandler(textService service.TextService, statisticsQueryService statistics.StatisticsQueryService, textQueryService query.TextQueryService) *Handler {
 	return &Handler{
 		textService:       textService,
 		statisticsService: statisticsQueryService,
@@ -70,7 +71,7 @@ func (h *Handler) GetStatistics(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rank := float64(summary.SymbolStatistics.AlphabetSymbolsCount) / float64(summary.SymbolStatistics.AllSymbolsCount)
+	rank := 1 - float64(summary.SymbolStatistics.AlphabetSymbolsCount)/float64(summary.SymbolStatistics.AllSymbolsCount) //todo: вынести логику в app
 	similarity := 0
 	if summary.UniqueStatistics.IsDuplicate {
 		similarity = 1
@@ -134,7 +135,7 @@ func (h *Handler) ListTexts(w http.ResponseWriter, _ *http.Request) {
 	}
 
 	err = tmpl.Execute(w, struct {
-		Texts []query.TextData
+		Texts []data.TextData
 	}{
 		Texts: texts,
 	})

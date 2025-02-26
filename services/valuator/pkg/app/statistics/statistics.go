@@ -1,26 +1,25 @@
-package query
+package statistics
 
 import (
 	"github.com/gofrs/uuid"
 	"unicode"
 	"unicode/utf8"
-	"valuator/pkg/app/errors"
-	"valuator/pkg/app/model"
-	"valuator/pkg/app/repository"
+	"valuator/pkg/app/data"
+	"valuator/pkg/app/query"
 )
 
 type StatisticsQueryService interface {
 	GetSummary(textID uuid.UUID) (TextStatistics, error)
 }
 
-func NewStatisticsQueryService(textReadRepository repository.TextReadRepository) StatisticsQueryService {
+func NewStatisticsQueryService(textQueryService query.TextQueryService) StatisticsQueryService {
 	return &statisticsQueryService{
-		textReadRepository: textReadRepository,
+		textQueryService: textQueryService,
 	}
 }
 
 type statisticsQueryService struct {
-	textReadRepository repository.TextReadRepository
+	textQueryService query.TextQueryService
 }
 
 type TextStatistics struct {
@@ -38,25 +37,22 @@ type UniqueStatistics struct {
 }
 
 func (queryService *statisticsQueryService) GetSummary(textID uuid.UUID) (TextStatistics, error) {
-	text, err := queryService.textReadRepository.Find(model.TextID(textID))
+	text, err := queryService.textQueryService.Get(textID)
 	if err != nil {
 		return TextStatistics{}, err
 	}
-	if text.IsEmpty() {
-		return TextStatistics{}, errors.ErrTextNotFound
-	}
-	allTexts, err := queryService.textReadRepository.ListAll()
+	allTexts, err := queryService.textQueryService.List()
 	if err != nil {
 		return TextStatistics{}, err
 	}
 
 	return TextStatistics{
-		SymbolStatistics: queryService.SymbolStatistics(text.Value()),
-		UniqueStatistics: queryService.UniqueStatistic(text.Value(), allTexts),
+		SymbolStatistics: queryService.SymbolStatistics(text),
+		UniqueStatistics: queryService.UniqueStatistic(text, allTexts),
 	}, nil
 }
 
-func (queryService *statisticsQueryService) SymbolStatistics(text model.Text) SymbolStatistics {
+func (queryService *statisticsQueryService) SymbolStatistics(text data.TextData) SymbolStatistics {
 	value := text.Value
 
 	allSymbolsCount := utf8.RuneCountInString(value)
@@ -74,7 +70,7 @@ func (queryService *statisticsQueryService) SymbolStatistics(text model.Text) Sy
 	}
 }
 
-func (queryService *statisticsQueryService) UniqueStatistic(targetText model.Text, allTexts []model.Text) UniqueStatistics {
+func (queryService *statisticsQueryService) UniqueStatistic(targetText data.TextData, allTexts []data.TextData) UniqueStatistics {
 	for _, otherText := range allTexts {
 		if otherText.ID == targetText.ID {
 			continue

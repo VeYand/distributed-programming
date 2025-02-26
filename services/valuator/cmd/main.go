@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"valuator/pkg/app/statistics"
 
 	"github.com/gorilla/mux"
 	"github.com/redis/go-redis/v9"
@@ -13,20 +14,20 @@ import (
 	"valuator/pkg/infrastructure/transport"
 )
 
-func initRedis() *redis.Client {
+func createRedisClient() *redis.Client { // todo: rename
 	return redis.NewClient(&redis.Options{
 		Addr:     "redis:6379",
 		Password: "12345Q",
 	})
 }
 
-func initHandler(rdb *redis.Client) (*transport.Handler, error) {
+func createHandler(rdb *redis.Client) *transport.Handler {
 	textRepo := repo.NewTextRepository(rdb)
 	textService := service.NewTextService(textRepo)
-	statisticsQueryService := query.NewStatisticsQueryService(textRepo)
 	textQueryService := query.NewTextQueryService(textRepo)
+	statisticsQueryService := statistics.NewStatisticsQueryService(textQueryService)
 
-	return transport.NewHandler(textService, statisticsQueryService, textQueryService), nil
+	return transport.NewHandler(textService, statisticsQueryService, textQueryService)
 }
 
 func setupRoutes(handler *transport.Handler) *mux.Router {
@@ -43,13 +44,9 @@ func setupRoutes(handler *transport.Handler) *mux.Router {
 	return router
 }
 
-func main() {
-	rdb := initRedis()
-	handler, err := initHandler(rdb)
-	if err != nil {
-		log.Fatalf("Could not initialize services: %v", err)
-	}
-
+func main() { // TODO хранить в редиске только одну копию текста, избавиться от получения значений в цикле
+	rdb := createRedisClient()
+	handler := createHandler(rdb)
 	router := setupRoutes(handler)
 
 	log.Println("Server is listening on port 8082")
