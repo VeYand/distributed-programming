@@ -1,11 +1,33 @@
 services:
-  valuator:
-    container_name: valuator
+  nginx:
+    image: mirror.gcr.io/nginx:1.23.4
+    container_name: valuator-nginx
+    restart: always
+    ports:
+      - "127.0.0.1:80:80"
+    volumes:
+      - ./services/nginx/nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - valuator-1
+      - valuator-2
+    networks:
+      - service-network
+
+  valuator-1:
+    container_name: valuator-1
     build:
       context: ./services/valuator
       dockerfile: Dockerfile
-    ports:
-      - "127.0.0.1:8082:8082"
+    volumes:
+      - ./services/valuator/data:/app/data
+    networks:
+      - service-network
+
+  valuator-2:
+    container_name: valuator-2
+    build:
+      context: ./services/valuator
+      dockerfile: Dockerfile
     volumes:
       - ./services/valuator/data:/app/data
     networks:
