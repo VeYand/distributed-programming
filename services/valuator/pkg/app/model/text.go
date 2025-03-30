@@ -1,12 +1,9 @@
 package model
 
-import (
-	"github.com/gofrs/uuid"
-)
-
-type TextID uuid.UUID
+type TextID string
 
 type Text struct {
 	ID    TextID
 	Value string
+	Count int
 }

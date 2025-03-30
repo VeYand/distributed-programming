@@ -11,7 +11,6 @@ import (
 type Storage[T any] interface {
 	Set(ctx context.Context, key string, value T, expiration time.Duration) error
 	Get(ctx context.Context, key string) (T, error)
-	ListAll(ctx context.Context, pattern string) ([]T, error)
 	Delete(ctx context.Context, key string) error
 }
 
@@ -39,33 +38,6 @@ func (storage *redisStorage[T]) Get(ctx context.Context, key string) (T, error) 
 	}
 	err = json.Unmarshal(jsonValue, &result)
 	return result, err
-}
-
-func (storage *redisStorage[T]) ListAll(ctx context.Context, pattern string) ([]T, error) {
-	var results []T
-
-	keys, err := storage.client.Keys(ctx, pattern).Result()
-	if err != nil {
-		return nil, err
-	}
-
-	for _, key := range keys {
-		var obj T
-
-		jsonValue, err := storage.client.Get(ctx, key).Bytes()
-		if err != nil {
-			return nil, err
-		}
-
-		err = json.Unmarshal(jsonValue, &obj)
-		if err != nil {
-			return nil, err
-		}
-
-		results = append(results, obj)
-	}
-
-	return results, nil
 }
 
 func (storage *redisStorage[T]) Delete(ctx context.Context, key string) error {

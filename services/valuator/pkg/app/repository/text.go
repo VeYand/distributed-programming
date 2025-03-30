@@ -8,7 +8,6 @@ import (
 
 type TextReadRepository interface {
 	Find(id model.TextID) (maybe.Maybe[model.Text], error)
-	ListAll() ([]model.Text, error)
 }
 
 type TextRepository interface {

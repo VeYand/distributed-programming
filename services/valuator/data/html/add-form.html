@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Добавление текста</title>
+    <title>Анализ текста</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -61,11 +61,11 @@
 <div class="container">
     <h1>Цветников Валериан ПС-33</h1>
     <h1>Valuator - приложение помощник редактора</h1>
-    <form action="/add" method="POST" id="addForm">
+    <form action="/statistics" method="POST" id="addForm">
         <label>
             <textarea name="text" rows="10" placeholder="Введите ваш текст здесь" required></textarea>
         </label>
-        <input type="submit" class="btn" value="Добавить">
+        <input type="submit" class="btn" value="Проанализировать">
     </form>
 </div>
 <script>
@@ -77,11 +77,19 @@
             body: new FormData(this)
         })
             .then(response => {
-                if (response.ok) {
-                    window.location.href = '/list';
-                } else {
+                if (!response.ok) {
                     console.error('Ошибка при добавлении:', response.status);
                     alert('Произошла ошибка при добавлении текста.');
+                    return;
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data && data.statistics_url) {
+                    window.location.href = data.statistics_url;
+                } else {
+                    console.error('Некорректный ответ от сервера:', data);
+                    alert('Произошла ошибка при обработке ответа сервера.');
                 }
             })
             .catch(error => {

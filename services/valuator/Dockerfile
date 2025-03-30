@@ -7,6 +7,7 @@ COPY . .
 RUN go mod tidy && \
     go mod vendor
 
+RUN go test -v ./...
 RUN go build -o ./bin/valuator ./cmd/main.go
 
 FROM alpine:latest

@@ -33,13 +33,11 @@ func createHandler(rdb *redis.Client) *transport.Handler {
 func setupRoutes(handler *transport.Handler) *mux.Router {
 	router := mux.NewRouter()
 
-	router.HandleFunc("/add-form", handler.GetAddForm).Methods("GET")
+	router.HandleFunc("/statistics", handler.CalculateStatistics).Methods("POST")
 
-	router.HandleFunc("/add", handler.AddText).Methods("POST")
-	router.HandleFunc("/summary", handler.GetStatistics).Methods("GET")
-	router.HandleFunc("/delete", handler.DeleteText).Methods("POST")
-	router.HandleFunc("/list", handler.ListTexts).Methods("GET")
-	router.HandleFunc("/", handler.ListTexts).Methods("GET")
+	router.HandleFunc("/statistics/{id}", handler.GetStatistics).Methods("GET")
+	router.HandleFunc("/add-form", handler.GetAddForm).Methods("GET")
+	router.HandleFunc("/", handler.GetAddForm).Methods("GET")
 
 	return router
 }

@@ -1,8 +1,7 @@
 package data
 
-import "github.com/gofrs/uuid"
-
 type TextData struct {
-	ID    uuid.UUID
+	ID    string
 	Value string
+	Count int
 }

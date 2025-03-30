@@ -1,13 +1,14 @@
 package transport
 
 import (
+	"encoding/json"
 	stderrors "errors"
+	"fmt"
+	"github.com/gorilla/mux"
 	"html/template"
 	"log"
 	"net/http"
 
-	"github.com/gofrs/uuid"
-	"valuator/pkg/app/data"
 	"valuator/pkg/app/errors"
 	"valuator/pkg/app/query"
 	"valuator/pkg/app/service"
@@ -16,11 +17,11 @@ import (
 
 type Handler struct {
 	textService       service.TextService
-	statisticsService statistics.StatisticsQueryService
+	statisticsService statistics.TextStatistics
 	textQueryService  query.TextQueryService
 }
 
-func NewHandler(textService service.TextService, statisticsQueryService statistics.StatisticsQueryService, textQueryService query.TextQueryService) *Handler {
+func NewHandler(textService service.TextService, statisticsQueryService statistics.TextStatistics, textQueryService query.TextQueryService) *Handler {
 	return &Handler{
 		textService:       textService,
 		statisticsService: statisticsQueryService,
@@ -43,22 +44,32 @@ func (h *Handler) GetAddForm(w http.ResponseWriter, _ *http.Request) {
 	}
 }
 
-func (h *Handler) AddText(w http.ResponseWriter, r *http.Request) {
-	_, err := h.textService.Add(r.FormValue("text"))
+func (h *Handler) CalculateStatistics(w http.ResponseWriter, r *http.Request) {
+	id, err := h.textService.Add(r.FormValue("text"))
 	if err != nil {
 		log.Printf("Error adding text: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	dataStruct := struct {
+		StatisticsURL string `json:"statistics_url"`
+	}{
+		StatisticsURL: fmt.Sprintf("/statistics/%s", id),
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	if err = json.NewEncoder(w).Encode(dataStruct); err != nil {
+		log.Printf("Error encoding JSON: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 }
 
 func (h *Handler) GetStatistics(w http.ResponseWriter, r *http.Request) {
-	id, err := uuid.FromString(r.FormValue("id"))
-	if err != nil {
-		log.Printf("Invalid UUID: %v", err)
-		http.Error(w, "Bad identifier", http.StatusBadRequest)
-		return
-	}
+	vars := mux.Vars(r)
+	id := vars["id"]
 
 	summary, err := h.statisticsService.GetSummary(id)
 	if stderrors.Is(err, errors.ErrTextNotFound) {
@@ -77,9 +88,9 @@ func (h *Handler) GetStatistics(w http.ResponseWriter, r *http.Request) {
 		similarity = 1
 	}
 
-	data := struct {
+	dataStruct := struct {
 		Title      string
-		TextID     uuid.UUID
+		TextID     string
 		Rank       float64
 		Similarity int
 	}{
@@ -95,52 +106,9 @@ func (h *Handler) GetStatistics(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
-	err = tmpl.Execute(w, data)
+	err = tmpl.Execute(w, dataStruct)
 	if err != nil {
 		log.Printf("Error executing summary template: %v", err)
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
-	}
-}
-
-func (h *Handler) DeleteText(w http.ResponseWriter, r *http.Request) {
-	id, err := uuid.FromString(r.FormValue("id"))
-	if err != nil {
-		log.Printf("Invalid UUID for deletion: %v", err)
-		http.Error(w, "Bad identifier", http.StatusBadRequest)
-		return
-	}
-
-	err = h.textService.Remove(id)
-	if err != nil {
-		log.Printf("Error deleting text: %v", err)
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
-	}
-}
-
-func (h *Handler) ListTexts(w http.ResponseWriter, _ *http.Request) {
-	texts, err := h.textQueryService.List()
-	if err != nil {
-		log.Printf("Error listing texts: %v", err)
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
-	}
-
-	tmpl, err := template.ParseFiles("./data/html/list.html")
-	if err != nil {
-		log.Printf("Error parsing list template: %v", err)
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
-	}
-
-	err = tmpl.Execute(w, struct {
-		Texts []data.TextData
-	}{
-		Texts: texts,
-	})
-	if err != nil {
-		log.Printf("Error executing list template: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}

@@ -1,14 +1,14 @@
 package service
 
 import (
-	"github.com/gofrs/uuid"
+	"crypto/sha256"
+	"encoding/hex"
 	"valuator/pkg/app/model"
 	"valuator/pkg/app/repository"
 )
 
 type TextService interface {
-	Add(value string) (uuid.UUID, error)
-	Remove(id uuid.UUID) error
+	Add(value string) (string, error)
 }
 
 func NewTextService(repository repository.TextRepository) TextService {
@@ -19,34 +19,37 @@ type textService struct {
 	repository repository.TextRepository
 }
 
-func (s *textService) Add(value string) (uuid.UUID, error) {
+func (s *textService) Add(value string) (string, error) {
 	text := s.createText(value)
-	err := s.repository.Store(text)
+	existingTextModel, err := s.repository.Find(text.ID)
 	if err != nil {
-		return uuid.UUID{}, err
+		return "", err
 	}
-	return uuid.UUID(text.ID), nil
-}
+	existingText, isPresent := existingTextModel.Get()
+	if isPresent {
+		existingText.Count++
+	} else {
+		existingText = text
+	}
 
-func (s *textService) Remove(id uuid.UUID) error {
-	text, err := s.repository.Find(model.TextID(id))
+	err = s.repository.Store(existingText)
 	if err != nil {
-		return err
+		return "", err
 	}
-	if text.IsPresent() {
-		return s.repository.Remove(text.Value())
-	}
-	return nil
+	return string(text.ID), nil
 }
 
 func (s *textService) createText(value string) model.Text {
-	newUuid, err := uuid.NewV7()
-	if err != nil {
-		panic(err)
-	}
-
+	newID := hashText(value)
 	return model.Text{
-		ID:    model.TextID(newUuid),
+		ID:    model.TextID(newID),
 		Value: value,
+		Count: 1,
 	}
+}
+
+func hashText(text string) string {
+	hash := sha256.New()
+	hash.Write([]byte(text))
+	return hex.EncodeToString(hash.Sum(nil))
 }

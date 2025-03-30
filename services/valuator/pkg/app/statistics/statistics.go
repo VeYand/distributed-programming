@@ -1,18 +1,17 @@
 package statistics
 
 import (
-	"github.com/gofrs/uuid"
 	"unicode"
 	"unicode/utf8"
 	"valuator/pkg/app/data"
 	"valuator/pkg/app/query"
 )
 
-type StatisticsQueryService interface {
-	GetSummary(textID uuid.UUID) (TextStatistics, error)
+type TextStatistics interface {
+	GetSummary(textID string) (TextStatisticsData, error)
 }
 
-func NewStatisticsQueryService(textQueryService query.TextQueryService) StatisticsQueryService {
+func NewStatisticsQueryService(textQueryService query.TextQueryService) TextStatistics {
 	return &statisticsQueryService{
 		textQueryService: textQueryService,
 	}
@@ -22,7 +21,7 @@ type statisticsQueryService struct {
 	textQueryService query.TextQueryService
 }
 
-type TextStatistics struct {
+type TextStatisticsData struct {
 	SymbolStatistics
 	UniqueStatistics
 }
@@ -36,19 +35,15 @@ type UniqueStatistics struct {
 	IsDuplicate bool
 }
 
-func (queryService *statisticsQueryService) GetSummary(textID uuid.UUID) (TextStatistics, error) {
+func (queryService *statisticsQueryService) GetSummary(textID string) (TextStatisticsData, error) {
 	text, err := queryService.textQueryService.Get(textID)
 	if err != nil {
-		return TextStatistics{}, err
-	}
-	allTexts, err := queryService.textQueryService.List()
-	if err != nil {
-		return TextStatistics{}, err
+		return TextStatisticsData{}, err
 	}
 
-	return TextStatistics{
+	return TextStatisticsData{
 		SymbolStatistics: queryService.SymbolStatistics(text),
-		UniqueStatistics: queryService.UniqueStatistic(text, allTexts),
+		UniqueStatistics: queryService.UniqueStatistic(text),
 	}, nil
 }
 
@@ -70,18 +65,8 @@ func (queryService *statisticsQueryService) SymbolStatistics(text data.TextData)
 	}
 }
 
-func (queryService *statisticsQueryService) UniqueStatistic(targetText data.TextData, allTexts []data.TextData) UniqueStatistics {
-	for _, otherText := range allTexts {
-		if otherText.ID == targetText.ID {
-			continue
-		}
-		if otherText.Value == targetText.Value {
-			return UniqueStatistics{
-				IsDuplicate: true,
-			}
-		}
-	}
+func (queryService *statisticsQueryService) UniqueStatistic(targetText data.TextData) UniqueStatistics {
 	return UniqueStatistics{
-		IsDuplicate: false,
+		IsDuplicate: targetText.Count > 1,
 	}
 }

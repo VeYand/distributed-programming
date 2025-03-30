@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/gofrs/uuid"
 	"github.com/mono83/maybe"
 	"github.com/redis/go-redis/v9"
 
@@ -27,21 +26,23 @@ type textRepository struct {
 type textSerializable struct {
 	ID    string `json:"id"`
 	Value string `json:"value"`
+	Count int    `json:"count"`
 }
 
 func (repository *textRepository) Store(text model.Text) error {
-	return repository.storage.Set(context.Background(), fmt.Sprintf("text:%s", uuid.UUID(text.ID).String()), textSerializable{
-		ID:    uuid.UUID(text.ID).String(),
+	return repository.storage.Set(context.Background(), fmt.Sprintf("text:%s", text.ID), textSerializable{
+		ID:    string(text.ID),
 		Value: text.Value,
+		Count: text.Count,
 	}, 0)
 }
 
 func (repository *textRepository) Remove(text model.Text) error {
-	return repository.storage.Delete(context.Background(), fmt.Sprintf("text:%s", uuid.UUID(text.ID).String()))
+	return repository.storage.Delete(context.Background(), fmt.Sprintf("text:%s", text.ID))
 }
 
 func (repository *textRepository) Find(id model.TextID) (maybe.Maybe[model.Text], error) {
-	v, err := repository.storage.Get(context.Background(), fmt.Sprintf("text:%s", uuid.UUID(id).String()))
+	v, err := repository.storage.Get(context.Background(), fmt.Sprintf("text:%s", id))
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
 			return maybe.Nothing[model.Text](), nil
@@ -56,29 +57,10 @@ func (repository *textRepository) Find(id model.TextID) (maybe.Maybe[model.Text]
 	return maybe.Just(textModel), nil
 }
 
-func (repository *textRepository) ListAll() ([]model.Text, error) {
-	vs, err := repository.storage.ListAll(context.Background(), "text:*")
-	if err != nil {
-		return nil, err
-	}
-	texts := make([]model.Text, 0, len(vs))
-	for _, v := range vs {
-		textModel, err := repository.convertToModel(v)
-		if err != nil {
-			return nil, err
-		}
-		texts = append(texts, textModel)
-	}
-	return texts, nil
-}
-
 func (repository *textRepository) convertToModel(text textSerializable) (model.Text, error) {
-	id, err := uuid.FromString(text.ID)
-	if err != nil {
-		return model.Text{}, err
-	}
 	return model.Text{
-		ID:    model.TextID(id),
+		ID:    model.TextID(text.ID),
 		Value: text.Value,
+		Count: text.Count,
 	}, nil
 }
