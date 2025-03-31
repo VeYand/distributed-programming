@@ -33,6 +33,18 @@ services:
     networks:
       - service-network
 
+  rank-calculator-1:
+    container_name: rank-calculator-1
+    build: ./services/rank-calculator
+    networks:
+      - service-network
+
+  rank-calculator-2:
+    container_name: rank-calculator-2
+    build: ./services/rank-calculator
+    networks:
+      - service-network
+
   redis:
     image: redis:alpine
     container_name: redis
@@ -44,9 +56,22 @@ services:
     networks:
       - service-network
 
+  rabbitmq:
+    image: mirror.gcr.io/rabbitmq:3.13.7
+    container_name: rabbitmq
+    hostname: rabbitmq
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    ports:
+      - '5672:5672'
+      - '15672:15672'
+    networks:
+      - service-network
+
 networks:
   service-network:
 
 volumes:
   db-data:
   redis_data:
+  rabbitmq_data:
