@@ -10,6 +10,8 @@ services:
     depends_on:
       - valuator-1
       - valuator-2
+      - rank-calculator-1
+      - rank-calculator-2
     networks:
       - service-network
 
@@ -20,6 +22,11 @@ services:
       dockerfile: Dockerfile
     volumes:
       - ./services/valuator/data:/app/data
+    depends_on:
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     networks:
       - service-network
 
@@ -30,18 +37,33 @@ services:
       dockerfile: Dockerfile
     volumes:
       - ./services/valuator/data:/app/data
+    depends_on:
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     networks:
       - service-network
 
   rank-calculator-1:
     container_name: rank-calculator-1
     build: ./services/rank-calculator
+    depends_on:
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     networks:
       - service-network
 
   rank-calculator-2:
     container_name: rank-calculator-2
     build: ./services/rank-calculator
+    depends_on:
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     networks:
       - service-network
 
@@ -53,6 +75,11 @@ services:
     volumes:
       - redis_data:/data
     command: redis-server --appendonly yes --requirepass 12345Q
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
     networks:
       - service-network
 
@@ -65,6 +92,11 @@ services:
     ports:
       - '5672:5672'
       - '15672:15672'
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
     networks:
       - service-network
 

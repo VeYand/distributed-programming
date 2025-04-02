@@ -1,32 +1,63 @@
 package main
 
 import (
-	"github.com/gorilla/mux"
+	"fmt"
+	amqp "github.com/rabbitmq/amqp091-go"
+	"github.com/redis/go-redis/v9"
 	"log"
-	"net/http"
+	"rankcalculator/pkg/app/event"
+	"rankcalculator/pkg/app/service"
+	amqp2 "rankcalculator/pkg/infrastructure/amqp"
+	"rankcalculator/pkg/infrastructure/redis/repository"
 )
 
-func setupRoutes() *mux.Router {
-	router := mux.NewRouter()
+func createRedisClient() *redis.Client {
+	return redis.NewClient(&redis.Options{
+		Addr:     "redis:6379",
+		Password: "12345Q",
+	})
+}
 
-	router.HandleFunc("/", helloWorld).Methods("GET")
+func newRabbitMQClient() (*amqp2.RabbitMQClient, error) {
+	amqpURL := "amqp://guest:guest@rabbitmq:5672/"
+	queueName := "valuator_queue"
+	conn, err := amqp.Dial(amqpURL)
+	if err != nil {
+		return nil, err
+	}
 
-	return router
+	ch, err := conn.Channel()
+	if err != nil {
+		return nil, err
+	}
+
+	return &amqp2.RabbitMQClient{
+		Conn:      conn,
+		Channel:   ch,
+		QueueName: queueName,
+	}, nil
 }
 
 func main() {
-	router := setupRoutes()
-
-	log.Println("Server is listening on port 8082")
-	if err := http.ListenAndServe(":8082", router); err != nil {
-		log.Fatalf("Could not start server: %v", err)
+	rabbitMQClient, err := newRabbitMQClient()
+	if err != nil {
+		log.Fatalf("RabbitMQ initialization error: %s", err)
 	}
-}
+	defer rabbitMQClient.Close()
 
-func helloWorld(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	if _, err := w.Write([]byte("hello world")); err != nil {
-		log.Printf("Error writing response: %v", err)
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
+	statisticsRepository := repo.NewStatisticsRepository(createRedisClient())
+	rankCalculator := service.NewRankCalculator(statisticsRepository)
+	eventHandler := event.NewHandler(rankCalculator)
+	rabbitHandler := amqp2.NewHandler(eventHandler)
+	rabbitMQConsumer := amqp2.NewRabbitMQConsumer(rabbitMQClient, rabbitHandler)
+
+	err = rabbitMQConsumer.ConnectReadChannel()
+	if err != nil {
+		log.Fatalf("RabbitMQ initialization error: %s", err)
+		return
 	}
+
+	fmt.Println("rankcalculator service is running")
+
+	select {}
 }

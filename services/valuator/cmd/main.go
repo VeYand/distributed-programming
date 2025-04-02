@@ -4,8 +4,10 @@ import (
 	"log"
 	"net/http"
 	"valuator/pkg/app/statistics"
+	amqp2 "valuator/pkg/infrastructure/amqp"
 
 	"github.com/gorilla/mux"
+	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/redis/go-redis/v9"
 
 	"valuator/pkg/app/query"
@@ -14,16 +16,36 @@ import (
 	"valuator/pkg/infrastructure/transport"
 )
 
-func createRedisClient() *redis.Client { // todo: rename
+func createRedisClient() *redis.Client {
 	return redis.NewClient(&redis.Options{
 		Addr:     "redis:6379",
 		Password: "12345Q",
 	})
 }
 
-func createHandler(rdb *redis.Client) *transport.Handler {
+func newRabbitMQClient() (*amqp2.RabbitMQClient, error) {
+	amqpURL := "amqp://guest:guest@rabbitmq:5672/"
+	conn, err := amqp.Dial(amqpURL)
+	if err != nil {
+		return nil, err
+	}
+
+	ch, err := conn.Channel()
+	if err != nil {
+		return nil, err
+	}
+
+	return &amqp2.RabbitMQClient{
+		Conn:      conn,
+		Channel:   ch,
+		QueueName: "valuator_queue",
+	}, nil
+}
+
+func createHandler(rdb *redis.Client, rabbitMQClient *amqp2.RabbitMQClient) *transport.Handler {
+	dispatcher := amqp2.NewEventDispatcher(rabbitMQClient)
 	textRepo := repo.NewTextRepository(rdb)
-	textService := service.NewTextService(textRepo)
+	textService := service.NewTextService(textRepo, dispatcher)
 	textQueryService := query.NewTextQueryService(textRepo)
 	statisticsQueryService := statistics.NewStatisticsQueryService(textQueryService)
 
@@ -42,9 +64,15 @@ func setupRoutes(handler *transport.Handler) *mux.Router {
 	return router
 }
 
-func main() { // TODO хранить в редиске только одну копию текста, избавиться от получения значений в цикле
+func main() {
+	rabbitMQClient, err := newRabbitMQClient()
+	if err != nil {
+		log.Fatalf("Ошибка инициализации RabbitMQ: %s", err)
+	}
+	defer rabbitMQClient.Close()
+
 	rdb := createRedisClient()
-	handler := createHandler(rdb)
+	handler := createHandler(rdb, rabbitMQClient)
 	router := setupRoutes(handler)
 
 	log.Println("Server is listening on port 8082")
