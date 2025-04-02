@@ -15,6 +15,7 @@ FROM alpine:latest
 WORKDIR /app
 
 COPY --from=builder /app/bin/rankcalculator ./bin/rankcalculator
+COPY --from=builder /app/data ./data
 
 EXPOSE 8082
 

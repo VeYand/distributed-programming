@@ -1,14 +1,17 @@
 package main
 
 import (
-	"fmt"
+	"github.com/gorilla/mux"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/redis/go-redis/v9"
 	"log"
+	"net/http"
 	"rankcalculator/pkg/app/event"
+	"rankcalculator/pkg/app/query"
 	"rankcalculator/pkg/app/service"
 	amqp2 "rankcalculator/pkg/infrastructure/amqp"
 	"rankcalculator/pkg/infrastructure/redis/repository"
+	"rankcalculator/pkg/infrastructure/transport"
 )
 
 func createRedisClient() *redis.Client {
@@ -38,6 +41,15 @@ func newRabbitMQClient() (*amqp2.RabbitMQClient, error) {
 	}, nil
 }
 
+func setupRoutes(handler *transport.Handler) *mux.Router {
+	router := mux.NewRouter()
+
+	router.HandleFunc("/statistics/{id}", handler.GetStatisticsPage).Methods("GET")
+	router.HandleFunc("/statistics/{id}", handler.GetStatisticsAPI).Methods("POST")
+
+	return router
+}
+
 func main() {
 	rabbitMQClient, err := newRabbitMQClient()
 	if err != nil {
@@ -51,13 +63,18 @@ func main() {
 	rabbitHandler := amqp2.NewHandler(eventHandler)
 	rabbitMQConsumer := amqp2.NewRabbitMQConsumer(rabbitMQClient, rabbitHandler)
 
+	statisticsQueryService := query.NewStatisticsQueryService(statisticsRepository)
+	httpHandler := transport.NewHandler(statisticsQueryService)
+	router := setupRoutes(httpHandler)
+
 	err = rabbitMQConsumer.ConnectReadChannel()
 	if err != nil {
 		log.Fatalf("RabbitMQ initialization error: %s", err)
 		return
 	}
 
-	fmt.Println("rankcalculator service is running")
-
-	select {}
+	log.Println("Server is listening on port 8082")
+	if err := http.ListenAndServe(":8082", router); err != nil {
+		log.Fatalf("Could not start server: %v", err)
+	}
 }

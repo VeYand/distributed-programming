@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Title}} - Valuator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            background-color: #fff;
+            padding: 20px 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 600px;
+            width: 90%;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        h2 {
+            color: #555;
+            margin-bottom: 20px;
+        }
+
+        p {
+            font-size: 16px;
+            color: #666;
+            margin-bottom: 15px;
+        }
+
+        p span {
+            font-weight: bold;
+        }
+
+        a button {
+            background-color: #008CBA;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s ease, transform 0.2s ease-in-out;
+        }
+
+        a button:hover {
+            background-color: #005f73;
+        }
+
+        a button:active {
+            transform: scale(0.95);
+        }
+
+        /* Стили для прелоадера */
+        #preloader {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Цветников Валериан ПС-33</h1>
+    <h1>Valuator - приложение помощник редактора</h1>
+    <h2>Результаты обработки</h2>
+
+    <div id="preloader">
+        <p>Загрузка...</p>
+    </div>
+
+    <div id="results" style="display: none;"></div>
+
+    <a href="/text/add-form">
+        <button>Новый текст</button>
+    </a>
+</div>
+<script>
+    const extractTextIdFromPath = (url) => {
+        const urlObject = new URL(url);
+        const path = urlObject.pathname;
+        const pathWithoutSlash = path.startsWith('/') ? path.substring(1) : path;
+        const pathParts = pathWithoutSlash.split('/');
+        return pathParts[pathParts.length - 1];
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+        const id = extractTextIdFromPath(window.location.href);
+        const preloader = document.getElementById('preloader');
+        const resultsDiv = document.getElementById('results');
+
+        const fetchData = () => {
+            fetch(`/statistics/${id}`, { method: 'POST' })
+                .then(response => {
+                    if (response.ok) {
+                        return response.json();
+                    }
+                    throw new Error('Данные ещё не готовы');
+                })
+                .then(data => {
+                    preloader.style.display = 'none';
+                    resultsDiv.style.display = 'block';
+                    resultsDiv.innerHTML = `
+                        <p><span>Идентификатор:</span> ${data.text_id}</p>
+                        <p><span>Rank:</span> ${data.rank}</p>
+                        <p><span>Схожесть с другими текстами:</span> ${data.is_duplicate ? 'Найден дубликат' : 'Дубликатов не найдено'}</p>
+                    `;
+
+                    if (intervalId) {
+                        clearInterval(intervalId);
+                    }
+                })
+                .catch(err => {
+                    console.log("Данные ещё не готовы, повтор запроса...", err);
+                });
+        };
+
+        fetchData();
+        const intervalId = setInterval(fetchData, 1000);
+    });
+</script>
+</body>
+</html>

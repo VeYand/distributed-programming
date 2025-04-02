@@ -3,7 +3,6 @@ package main
 import (
 	"log"
 	"net/http"
-	"valuator/pkg/app/statistics"
 	amqp2 "valuator/pkg/infrastructure/amqp"
 
 	"github.com/gorilla/mux"
@@ -47,18 +46,16 @@ func createHandler(rdb *redis.Client, rabbitMQClient *amqp2.RabbitMQClient) *tra
 	textRepo := repo.NewTextRepository(rdb)
 	textService := service.NewTextService(textRepo, dispatcher)
 	textQueryService := query.NewTextQueryService(textRepo)
-	statisticsQueryService := statistics.NewStatisticsQueryService(textQueryService)
 
-	return transport.NewHandler(textService, statisticsQueryService, textQueryService)
+	return transport.NewHandler(textService, textQueryService)
 }
 
 func setupRoutes(handler *transport.Handler) *mux.Router {
 	router := mux.NewRouter()
 
-	router.HandleFunc("/statistics", handler.CalculateStatistics).Methods("POST")
+	router.HandleFunc("/text/calculate", handler.CalculateStatistics).Methods("POST")
 
-	router.HandleFunc("/statistics/{id}", handler.GetStatistics).Methods("GET")
-	router.HandleFunc("/add-form", handler.GetAddForm).Methods("GET")
+	router.HandleFunc("/text/add-form", handler.GetAddForm).Methods("GET")
 	router.HandleFunc("/", handler.GetAddForm).Methods("GET")
 
 	return router
