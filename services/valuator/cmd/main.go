@@ -42,9 +42,9 @@ func newRabbitMQClient() (*amqp2.RabbitMQClient, error) {
 }
 
 func createHandler(rdb *redis.Client, rabbitMQClient *amqp2.RabbitMQClient) *transport.Handler {
-	dispatcher := amqp2.NewEventDispatcher(rabbitMQClient)
+	publisher := amqp2.NewMessagePublisher(rabbitMQClient)
 	textRepo := repo.NewTextRepository(rdb)
-	textService := service.NewTextService(textRepo, dispatcher)
+	textService := service.NewTextService(textRepo, publisher)
 	textQueryService := query.NewTextQueryService(textRepo)
 
 	return transport.NewHandler(textService, textQueryService)
@@ -77,3 +77,9 @@ func main() {
 		log.Fatalf("Could not start server: %v", err)
 	}
 }
+
+// TODO: Для чего нужен exchange
+// TODO: Чем модель передачи сообщений отличается от событийной модели
+// TODO: не использовать reader writer, использовать publisher consumer
+// TODO: разобраться с флагом durable
+// TODO: разобраться с флагом autoAck

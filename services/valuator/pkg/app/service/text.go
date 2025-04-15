@@ -3,7 +3,7 @@ package service
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"valuator/pkg/app/event"
+	"valuator/pkg/app/message"
 	"valuator/pkg/app/model"
 	"valuator/pkg/app/repository"
 )
@@ -12,16 +12,16 @@ type TextService interface {
 	Add(value string) (string, error)
 }
 
-func NewTextService(repository repository.TextRepository, eventDispatcher event.Dispatcher) TextService {
+func NewTextService(repository repository.TextRepository, messagePublisher message.Publisher) TextService {
 	return &textService{
-		repository:      repository,
-		eventDispatcher: eventDispatcher,
+		repository:       repository,
+		messagePublisher: messagePublisher,
 	}
 }
 
 type textService struct {
-	repository      repository.TextRepository
-	eventDispatcher event.Dispatcher
+	repository       repository.TextRepository
+	messagePublisher message.Publisher
 }
 
 func (s *textService) Add(value string) (string, error) {
@@ -42,7 +42,7 @@ func (s *textService) Add(value string) (string, error) {
 		return "", err
 	}
 
-	return string(text.ID), s.eventDispatcher.Dispatch(event.NewTextAddedEvent(existingText))
+	return string(text.ID), s.messagePublisher.Publish(message.NewTextAddedMessage(existingText))
 }
 
 func (s *textService) createText(value string) model.Text {

@@ -3,7 +3,7 @@ package amqp
 import (
 	"encoding/json"
 	"log"
-	"valuator/pkg/app/event"
+	"valuator/pkg/app/message"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 )
@@ -23,23 +23,23 @@ func (r *RabbitMQClient) Close() {
 	}
 }
 
-func NewEventDispatcher(publisher *RabbitMQClient) event.Dispatcher {
-	return &eventDispatcher{publisher: publisher}
+func NewMessagePublisher(publisher *RabbitMQClient) message.Publisher {
+	return &messagePublisher{publisher: publisher}
 }
 
-type eventDispatcher struct {
+type messagePublisher struct {
 	publisher *RabbitMQClient
 }
 
-type eventSerializable struct {
+type messageSerializable struct {
 	Type string      `json:"type"`
 	Data interface{} `json:"data"`
 }
 
-func (ed *eventDispatcher) Dispatch(event event.Event) error {
-	body, err := json.Marshal(eventSerializable{
-		Type: event.Type,
-		Data: event.Data,
+func (ed *messagePublisher) Publish(message message.Message) error {
+	body, err := json.Marshal(messageSerializable{
+		Type: message.Type,
+		Data: message.Data,
 	})
 	if err != nil {
 		return err

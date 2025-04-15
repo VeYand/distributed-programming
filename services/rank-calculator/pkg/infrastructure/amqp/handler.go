@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"rankcalculator/pkg/app/event"
+	"time"
 )
 
 type Handler interface {
@@ -24,6 +25,8 @@ type eventSerializable struct {
 }
 
 func (h *handler) Handle(ctx context.Context, body []byte) error {
+	time.Sleep(time.Second * 5)
+
 	var evt eventSerializable
 	err := json.Unmarshal(body, &evt)
 	if err != nil {

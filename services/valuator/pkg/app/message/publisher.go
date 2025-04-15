@@ -1,8 +1,8 @@
-package event
+package message
 
 import "valuator/pkg/app/model"
 
-type Event struct {
+type Message struct {
 	Type string
 	Data interface{}
 }
@@ -13,8 +13,8 @@ type addedTextSerializable struct {
 	Count int    `json:"count"`
 }
 
-func NewTextAddedEvent(text model.Text) Event {
-	return Event{
+func NewTextAddedMessage(text model.Text) Message {
+	return Message{
 		Type: "TextAdded",
 		Data: addedTextSerializable{
 			ID:    string(text.ID),
@@ -24,6 +24,6 @@ func NewTextAddedEvent(text model.Text) Event {
 	}
 }
 
-type Dispatcher interface {
-	Dispatch(event Event) error
+type Publisher interface {
+	Publish(event Message) error
 }
