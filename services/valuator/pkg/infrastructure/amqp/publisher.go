@@ -46,9 +46,9 @@ func (ed *messagePublisher) Publish(message message.Message) error {
 	}
 	err = ed.publisher.Channel.Publish(
 		"",                     // exchange (пустой exchange для direct отправки в очередь)
-		ed.publisher.QueueName, // routing key = имя очереди
-		false,                  // mandatory
-		false,                  // immediate
+		ed.publisher.QueueName, // routing key - имя очереди, куда должно быть отправлено сообщение.
+		false,                  // mandatory - если true, то сервер вернёт сообщение обратно, если оно не может быть маршрутизировано; false — не требуется возврат.
+		false,                  // immediate - если true, то сообщение будет доставлено немедленно (иначе ошибка, если нет готового потребителя); false — без проверки моментальной доставки.
 		amqp.Publishing{
 			ContentType: "application/json",
 			Body:        body,
