@@ -59,7 +59,7 @@ func (r *rabbitMQConsumer) ConnectReadChannel() error {
 	msgs, err := channel.Consume(
 		q.Name, // queue - имя очереди, из которой будет происходить чтение сообщений.
 		"",     // consumer - тег потребителя; пустая строка позволяет серверу сгенерировать его автоматически.
-		true,   // auto-ack - если true, то сообщения автоматически подтверждаются сразу после получения, без явного ack от потребителя.
+		false,  // auto-ack - если true, то сообщения автоматически подтверждаются сразу после получения, без явного ack от потребителя.
 		false,  // exclusive - если true, то только данный потребитель может получать сообщения из очереди; false — очередь может обслуживать нескольких потребителей.
 		false,  // no-local - если true, сообщения, опубликованные текущим соединением, не будут доставляться этому же соединению; false — таких ограничений нет.
 		false,  // no-wait - если true, клиент не ждёт подтверждения от сервера о начале потребления; false — ожидание подтверждения.
@@ -74,11 +74,20 @@ func (r *rabbitMQConsumer) ConnectReadChannel() error {
 			err = r.handler.Handle(context.Background(), d.Body)
 			if err != nil {
 				log.Printf("Error handling message: %s", err)
+				errAck := d.Nack(false, true)
+				if errAck != nil {
+					log.Printf("Error sending Nack: %s", errAck)
+				}
 			} else {
-				log.Printf("Successfully handled message: %s", d.Body)
+				errAck := d.Ack(false)
+				if errAck != nil {
+					log.Printf("Error sending Ack: %s", errAck)
+				} else {
+					log.Printf("Successfully handled message: %s", d.Body)
+				}
 			}
 		}
 	}()
 
-	return err
+	return nil
 }
