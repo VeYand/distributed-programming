@@ -1,4 +1,4 @@
-package event
+package message
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"rankcalculator/pkg/app/service"
 )
 
-type Event struct {
+type Message struct {
 	Type string
 	Data []byte
 }
@@ -20,7 +20,7 @@ type TextAddedPayload struct {
 }
 
 type Handler interface {
-	Handle(ctx context.Context, event Event) error
+	Handle(ctx context.Context, message Message) error
 }
 
 func NewHandler(rankCalculator service.RankCalculator) Handler {
@@ -33,10 +33,10 @@ type handler struct {
 	rankCalculator service.RankCalculator
 }
 
-func (h *handler) Handle(ctx context.Context, event Event) error {
-	if event.Type == "TextAdded" {
+func (h *handler) Handle(_ context.Context, message Message) error {
+	if message.Type == "TextAdded" {
 		var payload TextAddedPayload
-		err := json.Unmarshal(event.Data, &payload)
+		err := json.Unmarshal(message.Data, &payload)
 		if err != nil {
 			return err
 		}

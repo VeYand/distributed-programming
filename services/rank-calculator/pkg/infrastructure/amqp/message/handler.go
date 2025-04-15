@@ -1,9 +1,9 @@
-package amqp
+package message
 
 import (
 	"context"
 	"encoding/json"
-	"rankcalculator/pkg/app/event"
+	"rankcalculator/pkg/app/message"
 	"time"
 )
 
@@ -11,15 +11,15 @@ type Handler interface {
 	Handle(ctx context.Context, body []byte) error
 }
 
-func NewHandler(eventHandler event.Handler) Handler {
-	return &handler{eventHandler: eventHandler}
+func NewHandler(messageHandler message.Handler) Handler {
+	return &handler{messageHandler: messageHandler}
 }
 
 type handler struct {
-	eventHandler event.Handler
+	messageHandler message.Handler
 }
 
-type eventSerializable struct {
+type messageSerializable struct {
 	Type string          `json:"type"`
 	Data json.RawMessage `json:"data"`
 }
@@ -27,13 +27,13 @@ type eventSerializable struct {
 func (h *handler) Handle(ctx context.Context, body []byte) error {
 	time.Sleep(time.Second * 5)
 
-	var evt eventSerializable
+	var evt messageSerializable
 	err := json.Unmarshal(body, &evt)
 	if err != nil {
 		return err
 	}
 
-	return h.eventHandler.Handle(ctx, event.Event{
+	return h.messageHandler.Handle(ctx, message.Message{
 		Type: evt.Type,
 		Data: evt.Data,
 	})

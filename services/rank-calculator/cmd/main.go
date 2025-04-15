@@ -6,10 +6,10 @@ import (
 	"github.com/redis/go-redis/v9"
 	"log"
 	"net/http"
-	"rankcalculator/pkg/app/event"
+	appmessage "rankcalculator/pkg/app/message"
 	"rankcalculator/pkg/app/query"
 	"rankcalculator/pkg/app/service"
-	amqp2 "rankcalculator/pkg/infrastructure/amqp"
+	"rankcalculator/pkg/infrastructure/amqp/message"
 	"rankcalculator/pkg/infrastructure/redis/repository"
 	"rankcalculator/pkg/infrastructure/transport"
 )
@@ -21,7 +21,7 @@ func createRedisClient() *redis.Client {
 	})
 }
 
-func newRabbitMQClient() (*amqp2.RabbitMQClient, error) {
+func newRabbitMQClient() (*message.RabbitMQClient, error) {
 	amqpURL := "amqp://guest:guest@rabbitmq:5672/"
 	queueName := "valuator_queue"
 	conn, err := amqp.Dial(amqpURL)
@@ -34,7 +34,7 @@ func newRabbitMQClient() (*amqp2.RabbitMQClient, error) {
 		return nil, err
 	}
 
-	return &amqp2.RabbitMQClient{
+	return &message.RabbitMQClient{
 		Conn:      conn,
 		Channel:   ch,
 		QueueName: queueName,
@@ -59,9 +59,9 @@ func main() {
 
 	statisticsRepository := repo.NewStatisticsRepository(createRedisClient())
 	rankCalculator := service.NewRankCalculator(statisticsRepository)
-	eventHandler := event.NewHandler(rankCalculator)
-	rabbitHandler := amqp2.NewHandler(eventHandler)
-	rabbitMQConsumer := amqp2.NewRabbitMQConsumer(rabbitMQClient, rabbitHandler)
+	messageHandler := appmessage.NewHandler(rankCalculator)
+	rabbitHandler := message.NewHandler(messageHandler)
+	rabbitMQConsumer := message.NewRabbitMQConsumer(rabbitMQClient, rabbitHandler)
 
 	statisticsQueryService := query.NewStatisticsQueryService(statisticsRepository)
 	httpHandler := transport.NewHandler(statisticsQueryService)
