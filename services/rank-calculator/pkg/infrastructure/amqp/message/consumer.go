@@ -2,47 +2,35 @@ package message
 
 import (
 	"context"
-	amqp "github.com/rabbitmq/amqp091-go"
 	"log"
+	amqpinf "rankcalculator/pkg/infrastructure/amqp"
 )
-
-type RabbitMQClient struct {
-	Conn      *amqp.Connection
-	Channel   *amqp.Channel
-	QueueName string
-}
 
 type RabbitMQConsumer interface {
 	ConnectReadChannel() error
 }
 
 func NewRabbitMQConsumer(
-	client *RabbitMQClient,
+	client *amqpinf.RabbitMQClient,
 	handler Handler,
+	queueName string,
 ) RabbitMQConsumer {
 	return &rabbitMQConsumer{
-		client:  client,
-		handler: handler,
+		client:    client,
+		handler:   handler,
+		queueName: queueName,
 	}
 }
 
 type rabbitMQConsumer struct {
-	client  *RabbitMQClient
-	handler Handler
-}
-
-func (r *RabbitMQClient) Close() {
-	if err := r.Channel.Close(); err != nil {
-		log.Printf("Error closing channel: %s", err)
-	}
-	if err := r.Conn.Close(); err != nil {
-		log.Printf("Error closing connection: %s", err)
-	}
+	client    *amqpinf.RabbitMQClient
+	handler   Handler
+	queueName string
 }
 
 func (r *rabbitMQConsumer) ConnectReadChannel() error {
 	channel := r.client.Channel
-	queueName := r.client.QueueName
+	queueName := r.queueName
 
 	q, err := channel.QueueDeclare(
 		queueName, // name - имя очереди.

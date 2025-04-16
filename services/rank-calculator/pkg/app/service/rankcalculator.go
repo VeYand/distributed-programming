@@ -2,6 +2,7 @@ package service
 
 import (
 	"rankcalculator/pkg/app/data"
+	"rankcalculator/pkg/app/event"
 	"rankcalculator/pkg/app/model"
 	"rankcalculator/pkg/app/repository"
 	"unicode"
@@ -14,14 +15,17 @@ type RankCalculator interface {
 
 func NewRankCalculator(
 	statisticsRepository repository.StatisticsRepository,
+	eventDispatcher event.Dispatcher,
 ) RankCalculator {
 	return &rankCalculator{
 		statisticsRepository: statisticsRepository,
+		eventDispatcher:      eventDispatcher,
 	}
 }
 
 type rankCalculator struct {
 	statisticsRepository repository.StatisticsRepository
+	eventDispatcher      event.Dispatcher
 }
 
 func (r rankCalculator) Calculate(text data.Text) error {
@@ -38,10 +42,15 @@ func (r rankCalculator) Calculate(text data.Text) error {
 
 	isDuplicate := text.Count > 1
 
-	return r.statisticsRepository.Store(model.Statistics{
+	err := r.statisticsRepository.Store(model.Statistics{
 		TextID:               text.ID,
 		AllSymbolsCount:      allSymbolsCount,
 		AlphabetSymbolsCount: alphabetSymbolsCount,
 		IsDuplicate:          isDuplicate,
 	})
+	if err != nil {
+		return err
+	}
+
+	return r.eventDispatcher.Dispatch(event.CreateRankCalculatedEvent(text.ID))
 }
