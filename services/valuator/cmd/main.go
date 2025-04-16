@@ -5,6 +5,9 @@ import (
 	"net/http"
 	amqp2 "valuator/pkg/infrastructure/amqp"
 
+	"valuator/pkg/infrastructure/amqp/event"
+	"valuator/pkg/infrastructure/amqp/message"
+
 	"github.com/gorilla/mux"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/redis/go-redis/v9"
@@ -35,16 +38,16 @@ func newRabbitMQClient() (*amqp2.RabbitMQClient, error) {
 	}
 
 	return &amqp2.RabbitMQClient{
-		Conn:      conn,
-		Channel:   ch,
-		QueueName: "valuator_queue",
+		Conn:    conn,
+		Channel: ch,
 	}, nil
 }
 
 func createHandler(rdb *redis.Client, rabbitMQClient *amqp2.RabbitMQClient) *transport.Handler {
-	publisher := amqp2.NewMessagePublisher(rabbitMQClient)
+	publisher := message.NewMessagePublisher(rabbitMQClient, "valuator_queue")
+	dispatcher := event.NewEventDispatcher(rabbitMQClient, "events", "valuator")
 	textRepo := repo.NewTextRepository(rdb)
-	textService := service.NewTextService(textRepo, publisher)
+	textService := service.NewTextService(textRepo, publisher, dispatcher)
 	textQueryService := query.NewTextQueryService(textRepo)
 
 	return transport.NewHandler(textService, textQueryService)
@@ -77,9 +80,3 @@ func main() {
 		log.Fatalf("Could not start server: %v", err)
 	}
 }
-
-// TODO: Для чего нужен exchange
-// TODO: Чем модель передачи сообщений отличается от событийной модели
-// TODO: не использовать reader writer, использовать publisher consumer
-// TODO: разобраться с флагом durable
-// TODO: разобраться с флагом autoAck

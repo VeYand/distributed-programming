@@ -3,6 +3,7 @@ package service
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"valuator/pkg/app/event"
 	"valuator/pkg/app/message"
 	"valuator/pkg/app/model"
 	"valuator/pkg/app/repository"
@@ -12,16 +13,18 @@ type TextService interface {
 	Add(value string) (string, error)
 }
 
-func NewTextService(repository repository.TextRepository, messagePublisher message.Publisher) TextService {
+func NewTextService(repository repository.TextRepository, messagePublisher message.Publisher, eventDispatcher event.Dispatcher) TextService {
 	return &textService{
 		repository:       repository,
 		messagePublisher: messagePublisher,
+		eventDispatcher:  eventDispatcher,
 	}
 }
 
 type textService struct {
 	repository       repository.TextRepository
 	messagePublisher message.Publisher
+	eventDispatcher  event.Dispatcher
 }
 
 func (s *textService) Add(value string) (string, error) {
@@ -38,6 +41,11 @@ func (s *textService) Add(value string) (string, error) {
 	}
 
 	err = s.repository.Store(existingText)
+	if err != nil {
+		return "", err
+	}
+
+	err = s.eventDispatcher.Dispatch(event.CreateSimilarityCalculatedEvent(existingText.ID, existingText.Count > 0))
 	if err != nil {
 		return "", err
 	}
