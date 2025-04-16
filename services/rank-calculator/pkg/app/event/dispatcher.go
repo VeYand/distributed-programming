@@ -9,13 +9,15 @@ type Event struct {
 	Data interface{} `json:"data"`
 }
 
-func CreateRankCalculatedEvent(statisticsID model.TextID) Event {
+func CreateRankCalculatedEvent(statisticsID model.TextID, rank float64) Event {
 	return Event{
 		Type: "rankcalculator.rank_calculated",
 		Data: struct {
 			StatisticID model.TextID `json:"statistic_id"`
+			Rank        float64      `json:"rank"`
 		}{
 			StatisticID: statisticsID,
+			Rank:        rank,
 		},
 	}
 }

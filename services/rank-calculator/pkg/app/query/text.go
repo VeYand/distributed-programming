@@ -1,6 +1,7 @@
 package query
 
 import (
+	"rankcalculator/pkg/app/calculator"
 	"rankcalculator/pkg/app/data"
 	"rankcalculator/pkg/app/errors"
 	"rankcalculator/pkg/app/model"
@@ -38,6 +39,6 @@ func (s *statisticsQueryService) Get(ID string) (data.Statistics, error) {
 		AlphabetSymbolsCount: statisticsValue.AlphabetSymbolsCount,
 		AllSymbolsCount:      statisticsValue.AllSymbolsCount,
 		IsDuplicate:          statisticsValue.IsDuplicate,
-		Rank:                 1 - float64(statisticsValue.AlphabetSymbolsCount)/float64(statisticsValue.AllSymbolsCount),
+		Rank:                 calculator.NewRankCalculator().Calculate(statisticsValue),
 	}, nil
 }

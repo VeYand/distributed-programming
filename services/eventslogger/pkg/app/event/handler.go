@@ -12,7 +12,8 @@ type Event struct {
 }
 
 type RankCalculatedEventPayload struct {
-	StatisticID string `json:"statistic_id"`
+	StatisticID string  `json:"statistic_id"`
+	Rank        float64 `json:"rank"`
 }
 
 type SimilarityCalculatedEventPayload struct {
@@ -38,7 +39,7 @@ func (h *handler) Handle(_ context.Context, message Event) error {
 			return err
 		}
 
-		log.Println("Rank calculated, statistic ID: ", payload.StatisticID)
+		log.Println("Rank calculated, statistic ID: ", payload.StatisticID, ", Rank: ", payload.Rank)
 	} else if message.Type == "valuator.similarity_calculated" {
 		var payload SimilarityCalculatedEventPayload
 		err := json.Unmarshal(message.Data, &payload)

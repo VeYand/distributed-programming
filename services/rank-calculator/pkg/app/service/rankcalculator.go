@@ -1,6 +1,7 @@
 package service
 
 import (
+	"rankcalculator/pkg/app/calculator"
 	"rankcalculator/pkg/app/data"
 	"rankcalculator/pkg/app/event"
 	"rankcalculator/pkg/app/model"
@@ -42,15 +43,16 @@ func (r rankCalculator) Calculate(text data.Text) error {
 
 	isDuplicate := text.Count > 1
 
-	err := r.statisticsRepository.Store(model.Statistics{
+	statistics := model.Statistics{
 		TextID:               text.ID,
 		AllSymbolsCount:      allSymbolsCount,
 		AlphabetSymbolsCount: alphabetSymbolsCount,
 		IsDuplicate:          isDuplicate,
-	})
+	}
+	err := r.statisticsRepository.Store(statistics)
 	if err != nil {
 		return err
 	}
 
-	return r.eventDispatcher.Dispatch(event.CreateRankCalculatedEvent(text.ID))
+	return r.eventDispatcher.Dispatch(event.CreateRankCalculatedEvent(text.ID, calculator.NewRankCalculator().Calculate(statistics)))
 }
