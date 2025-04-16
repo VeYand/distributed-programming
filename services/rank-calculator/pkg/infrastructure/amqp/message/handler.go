@@ -3,6 +3,7 @@ package message
 import (
 	"context"
 	"encoding/json"
+	"math/rand"
 	"rankcalculator/pkg/app/message"
 	"time"
 )
@@ -25,7 +26,7 @@ type messageSerializable struct {
 }
 
 func (h *handler) Handle(ctx context.Context, body []byte) error {
-	time.Sleep(time.Second * 5)
+	randomSleep()
 
 	var evt messageSerializable
 	err := json.Unmarshal(body, &evt)
@@ -37,4 +38,10 @@ func (h *handler) Handle(ctx context.Context, body []byte) error {
 		Type: evt.Type,
 		Data: evt.Data,
 	})
+}
+
+func randomSleep() {
+	rand.Seed(time.Now().UnixNano())
+	delaySeconds := rand.Intn(13) + 3
+	time.Sleep(time.Duration(delaySeconds) * time.Second)
 }
