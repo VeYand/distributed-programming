@@ -68,7 +68,7 @@ func main() {
 	httpHandler := transport.NewHandler(statisticsQueryService)
 	router := setupRoutes(httpHandler)
 
-	err = rabbitMQConsumer.ConnectReadChannel()
+	err = rabbitMQConsumer.Subscribe()
 	if err != nil {
 		log.Fatalf("RabbitMQ initialization error: %s", err)
 		return

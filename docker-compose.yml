@@ -67,6 +67,15 @@ services:
     networks:
       - service-network
 
+  eventslogger:
+    container_name: eventslogger
+    build: ./services/eventslogger
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - service-network
+
   redis:
     image: redis:alpine
     container_name: redis

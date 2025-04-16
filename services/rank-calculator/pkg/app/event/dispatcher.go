@@ -12,7 +12,11 @@ type Event struct {
 func CreateRankCalculatedEvent(statisticsID model.TextID) Event {
 	return Event{
 		Type: "rankcalculator.rank_calculated",
-		Data: string(statisticsID),
+		Data: struct {
+			StatisticID model.TextID `json:"statistic_id"`
+		}{
+			StatisticID: statisticsID,
+		},
 	}
 }
 

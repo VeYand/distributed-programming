@@ -1,36 +1,50 @@
-package message
+package event
 
 import (
 	"context"
+	amqpinf "eventslogger/pkg/infrastructure/amqp"
+	amqp "github.com/rabbitmq/amqp091-go"
 	"log"
-	amqpinf "rankcalculator/pkg/infrastructure/amqp"
 )
 
-type RabbitMQConsumer interface {
-	Subscribe() error
+type RabbitMQSubscriber interface {
+	Subscribe(routingKeys []string) error
 }
 
-func NewRabbitMQConsumer(
+func NewRabbitMQSubscriber(
 	client *amqpinf.RabbitMQClient,
 	handler Handler,
 	queueName string,
-) RabbitMQConsumer {
-	return &rabbitMQConsumer{
+) RabbitMQSubscriber {
+	return &rabbitMQSubscriber{
 		client:    client,
 		handler:   handler,
 		queueName: queueName,
 	}
 }
 
-type rabbitMQConsumer struct {
+type rabbitMQSubscriber struct {
 	client    *amqpinf.RabbitMQClient
 	handler   Handler
 	queueName string
 }
 
-func (r *rabbitMQConsumer) Subscribe() error {
+func (r *rabbitMQSubscriber) Subscribe(routingKeys []string) error {
 	channel := r.client.Channel
 	queueName := r.queueName
+
+	err := channel.ExchangeDeclare(
+		"events", // name
+		"topic",  // type
+		true,     // durable
+		false,    // auto-deleted
+		false,    // internal
+		false,    // no-wait
+		nil,      // arguments
+	)
+	if err != nil {
+		return err
+	}
 
 	q, err := channel.QueueDeclare(
 		queueName, // name - имя очереди.
@@ -42,6 +56,19 @@ func (r *rabbitMQConsumer) Subscribe() error {
 	)
 	if err != nil {
 		return err
+	}
+
+	for _, routingKey := range routingKeys {
+		err = channel.QueueBind(
+			q.Name,     // queue name
+			routingKey, // routing key
+			"events",   // exchange
+			false,
+			nil,
+		)
+		if err != nil {
+			return err
+		}
 	}
 
 	msgs, err := channel.Consume(
@@ -57,25 +84,22 @@ func (r *rabbitMQConsumer) Subscribe() error {
 		return err
 	}
 
-	go func() {
-		for d := range msgs {
-			err = r.handler.Handle(context.Background(), d.Body)
-			if err != nil {
-				log.Printf("Error handling message: %s", err)
-				errAck := d.Nack(false, true)
-				if errAck != nil {
-					log.Printf("Error sending Nack: %s", errAck)
-				}
-			} else {
-				errAck := d.Ack(false)
-				if errAck != nil {
-					log.Printf("Error sending Ack: %s", errAck)
-				} else {
-					log.Printf("Successfully handled message: %s", d.Body)
-				}
+	go r.processMessages(msgs)
+	return nil
+}
+
+func (r *rabbitMQSubscriber) processMessages(msgs <-chan amqp.Delivery) {
+	for d := range msgs {
+		err := r.handler.Handle(context.Background(), d.Body)
+		if err != nil {
+			log.Printf("Error handling message: %s", err)
+			if err = d.Nack(false, true); err != nil {
+				log.Printf("Error sending Nack: %s", err)
+			}
+		} else {
+			if err = d.Ack(false); err != nil {
+				log.Printf("Error sending Ack: %s", err)
 			}
 		}
-	}()
-
-	return nil
+	}
 }
