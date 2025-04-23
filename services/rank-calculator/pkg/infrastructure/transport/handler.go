@@ -3,10 +3,12 @@ package transport
 import (
 	"encoding/json"
 	stderrors "errors"
+	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
 	"html/template"
 	"log"
 	"net/http"
+	"time"
 
 	"rankcalculator/pkg/app/errors"
 	"rankcalculator/pkg/app/query"
@@ -22,11 +24,26 @@ func NewHandler(statisticsQueryService query.StatisticsQueryService) *Handler {
 	}
 }
 
-func (h *Handler) GetStatisticsPage(w http.ResponseWriter, _ *http.Request) {
+func (h *Handler) GetStatisticsPage(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	textID := vars["id"]
+	channel := "statistics#" + string(textID)
+	ip := r.Header.Get("X-Forwarded-For")
+	if ip == "" {
+		ip = r.RemoteAddr
+	}
 	dataStruct := struct {
-		Title string
+		Title           string
+		CentrifugoToken string
+		CentrifugoURL   string
+		Channel         string
+		ProcessingID    string
 	}{
-		Title: "Результаты",
+		Title:           "Результаты",
+		CentrifugoToken: generateCentrifugoToken(ip, channel),
+		CentrifugoURL:   "ws://127.0.0.1:8000/connection/websocket",
+		Channel:         channel,
+		ProcessingID:    textID,
 	}
 
 	tmpl, err := template.ParseFiles("./data/html/summary.html")
@@ -74,4 +91,21 @@ func (h *Handler) GetStatisticsAPI(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
+}
+
+func generateCentrifugoToken(identifier string, channel string) string {
+	claims := jwt.MapClaims{
+		"sub":      identifier,
+		"exp":      time.Now().Add(24 * time.Hour).Unix(),
+		"channels": []string{channel},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	signedToken, err := token.SignedString([]byte("my_secret"))
+	if err != nil {
+		log.Printf("Ошибка генерации токена: %v", err)
+		return ""
+	}
+
+	return signedToken
 }

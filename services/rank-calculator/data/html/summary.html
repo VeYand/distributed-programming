@@ -71,6 +71,7 @@
             margin-bottom: 20px;
         }
     </style>
+    <script src="https://unpkg.com/centrifuge/dist/centrifuge.js"></script>
 </head>
 <body>
 <div class="container">
@@ -79,7 +80,7 @@
     <h2>Результаты обработки</h2>
 
     <div id="preloader">
-        <p>Загрузка...</p>
+        <p id="loading-text">Загрузка...</p>
     </div>
 
     <div id="results" style="display: none;"></div>
@@ -89,21 +90,83 @@
     </a>
 </div>
 <script>
-    const extractTextIdFromPath = (url) => {
-        const urlObject = new URL(url);
-        const path = urlObject.pathname;
-        const pathWithoutSlash = path.startsWith('/') ? path.substring(1) : path;
-        const pathParts = pathWithoutSlash.split('/');
-        return pathParts[pathParts.length - 1];
-    }
+    const centrifugoUrl = "{{.CentrifugoURL}}";
+    const channel = "{{.Channel}}";
+    const processingId = "{{.ProcessingID}}";
+    const centrifugoToken = "{{.CentrifugoToken}}";
+
 
     window.addEventListener('DOMContentLoaded', () => {
-        const id = extractTextIdFromPath(window.location.href);
         const preloader = document.getElementById('preloader');
         const resultsDiv = document.getElementById('results');
 
-        const fetchData = () => {
-            fetch(`/statistics/${id}`, { method: 'POST' })
+        const checkCentrifuge = setInterval(() => {
+            if (typeof Centrifuge !== 'undefined') {
+                clearInterval(checkCentrifuge);
+                initializeCentrifuge();
+            }
+        }, 50);
+
+        function initializeCentrifuge() {
+            const centrifuge = new Centrifuge(
+                centrifugoUrl,
+                {
+                    token: centrifugoToken,
+                    debug: false
+                }
+            );
+
+            let isSubscribed = false;
+            const subscription = centrifuge.newSubscription(channel);
+
+            subscription.on('subscribing', function () {
+                updateLoadingText('Подключение к обновлениям в реальном времени...');
+            });
+
+            subscription.on('subscribed', function () {
+                console.log('Successfully subscribed to channel:', channel);
+                isSubscribed = true;
+                updateLoadingText('Ожидание результата обработки текста...');
+            });
+
+            subscription.on('error', function (err) {
+                console.error('Subscription error:', err);
+                if (err.code === 105) {
+                    console.log('Already subscribed, ignoring...');
+                    return;
+                }
+                updateLoadingText('Ошибка соединения. Повторите попытку позже.');
+            });
+
+            subscription.on('publication', function (ctx) {
+                console.log('Publication received:', ctx);
+                const data = ctx.data;
+                if (data.text_id === processingId) {
+                    fetchData(data.text_id);
+                    if (isSubscribed) {
+                        subscription.unsubscribe();
+                        centrifuge.disconnect();
+                        isSubscribed = false;
+                    }
+                }
+            });
+
+            centrifuge.on('connecting', function (ctx) {
+                console.log('Connecting to Centrifugo...');
+            });
+
+            centrifuge.on('connected', function (ctx) {
+                console.log('Connected to Centrifugo');
+                if (!isSubscribed) {
+                    subscription.subscribe();
+                }
+            });
+
+            centrifuge.connect();
+        }
+
+        const fetchData = (id) => {
+            fetch(`/statistics/${id}`, {method: 'POST'})
                 .then(response => {
                     if (response.ok) {
                         return response.json();
@@ -118,18 +181,18 @@
                         <p><span>Rank:</span> ${data.rank}</p>
                         <p><span>Схожесть с другими текстами:</span> ${data.is_duplicate ? 'Найден дубликат' : 'Дубликатов не найдено'}</p>
                     `;
-
-                    if (intervalId) {
-                        clearInterval(intervalId);
-                    }
                 })
                 .catch(err => {
                     console.log("Данные ещё не готовы, повтор запроса...", err);
                 });
         };
 
-        fetchData();
-        const intervalId = setInterval(fetchData, 1000);
+        function updateLoadingText(text) {
+            const loadingText = document.querySelector('#loading-text');
+            if (loadingText) {
+                loadingText.textContent = text;
+            }
+        }
     });
 </script>
 </body>

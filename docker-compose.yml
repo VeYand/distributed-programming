@@ -109,6 +109,20 @@ services:
     networks:
       - service-network
 
+  centrifugo:
+    image: centrifugo/centrifugo:latest
+    container_name: centrifugo
+    environment:
+      - CENTRIFUGO_ADMIN_PASSWORD=admin_password
+      - CENTRIFUGO_ADMIN_SECRET=admin_secret
+    ports:
+      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - ./services/centrifugo/config/config.json:/centrifugo/config.json
+    networks:
+      - service-network
+
 networks:
   service-network:
 
