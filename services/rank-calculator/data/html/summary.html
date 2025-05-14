@@ -95,19 +95,27 @@
     const processingId = "{{.ProcessingID}}";
     const centrifugoToken = "{{.CentrifugoToken}}";
 
+    const extractTextIdFromPath = (url) => {
+        const urlObject = new URL(url);
+        const path = urlObject.pathname;
+        const pathWithoutSlash = path.startsWith('/') ? path.substring(1) : path;
+        const pathParts = pathWithoutSlash.split('/');
+        return pathParts[pathParts.length - 1];
+    }
 
     window.addEventListener('DOMContentLoaded', () => {
         const preloader = document.getElementById('preloader');
         const resultsDiv = document.getElementById('results');
 
-        const checkCentrifuge = setInterval(() => {
-            if (typeof Centrifuge !== 'undefined') {
-                clearInterval(checkCentrifuge);
-                initializeCentrifuge();
-            }
-        }, 50);
+        function attemptFetch() {
+            updateLoadingText('Проверка готовности результата...');
+            fetchData(extractTextIdFromPath(window.location.href))
+                .catch(() => {
+                    initCentrifuge();
+                });
+        }
 
-        function initializeCentrifuge() {
+        function initCentrifuge() {
             const centrifuge = new Centrifuge(
                 centrifugoUrl,
                 {
@@ -115,7 +123,6 @@
                     debug: false
                 }
             );
-
             let isSubscribed = false;
             const subscription = centrifuge.newSubscription(channel);
 
@@ -124,9 +131,7 @@
             });
 
             subscription.on('subscribed', function () {
-                console.log('Successfully subscribed to channel:', channel);
-                isSubscribed = true;
-                updateLoadingText('Ожидание результата обработки текста...');
+                updateLoadingText('Ожидание результата обработки...');
             });
 
             subscription.on('error', function (err) {
@@ -138,7 +143,7 @@
                 updateLoadingText('Ошибка соединения. Повторите попытку позже.');
             });
 
-            subscription.on('publication', function (ctx) {
+            subscription.on('publication', ctx => {
                 console.log('Publication received:', ctx);
                 const data = ctx.data;
                 if (data.text_id === processingId) {
@@ -166,7 +171,7 @@
         }
 
         const fetchData = (id) => {
-            fetch(`/statistics/${id}`, {method: 'POST'})
+            return fetch(`/statistics/${id}`, {method: 'POST'})
                 .then(response => {
                     if (response.ok) {
                         return response.json();
@@ -182,9 +187,6 @@
                         <p><span>Схожесть с другими текстами:</span> ${data.is_duplicate ? 'Найден дубликат' : 'Дубликатов не найдено'}</p>
                     `;
                 })
-                .catch(err => {
-                    console.log("Данные ещё не готовы, повтор запроса...", err);
-                });
         };
 
         function updateLoadingText(text) {
@@ -193,6 +195,8 @@
                 loadingText.textContent = text;
             }
         }
+
+        attemptFetch();
     });
 </script>
 </body>
