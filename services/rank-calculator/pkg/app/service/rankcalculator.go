@@ -2,7 +2,6 @@ package service
 
 import (
 	"log"
-	"rankcalculator/pkg/app/calculator"
 	"rankcalculator/pkg/app/data"
 	"rankcalculator/pkg/app/event"
 	"rankcalculator/pkg/app/model"
@@ -69,5 +68,12 @@ func (r rankCalculator) Calculate(text data.Text) error {
 		log.Printf("Failed to publish centrifugo event: %v", err)
 	}
 
-	return r.eventDispatcher.Dispatch(event.CreateRankCalculatedEvent(text.ID, calculator.NewRankCalculator().Calculate(statistics)))
+	return r.eventDispatcher.Dispatch(event.CreateRankCalculatedEvent(text.ID, CalculateRank(statistics)))
+}
+
+func CalculateRank(statistics model.Statistics) float64 {
+	if statistics.AlphabetSymbolsCount == 0 {
+		return 0
+	}
+	return 1 - float64(statistics.AlphabetSymbolsCount)/float64(statistics.AllSymbolsCount)
 }

@@ -1,11 +1,11 @@
 package query
 
 import (
-	"rankcalculator/pkg/app/calculator"
 	"rankcalculator/pkg/app/data"
 	"rankcalculator/pkg/app/errors"
 	"rankcalculator/pkg/app/model"
 	"rankcalculator/pkg/app/repository"
+	"rankcalculator/pkg/app/service"
 )
 
 type StatisticsQueryService interface {
@@ -39,6 +39,6 @@ func (s *statisticsQueryService) Get(ID string) (data.Statistics, error) {
 		AlphabetSymbolsCount: statisticsValue.AlphabetSymbolsCount,
 		AllSymbolsCount:      statisticsValue.AllSymbolsCount,
 		IsDuplicate:          statisticsValue.IsDuplicate,
-		Rank:                 calculator.NewRankCalculator().Calculate(statisticsValue),
+		Rank:                 service.NewRankCalculator().Calculate(statisticsValue),
 	}, nil
 }
