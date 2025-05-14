@@ -72,7 +72,7 @@ func (r rankCalculator) Calculate(text data.Text) error {
 }
 
 func CalculateRank(statistics model.Statistics) float64 {
-	if statistics.AlphabetSymbolsCount == 0 {
+	if statistics.AllSymbolsCount == 0 {
 		return 0
 	}
 	return 1 - float64(statistics.AlphabetSymbolsCount)/float64(statistics.AllSymbolsCount)
