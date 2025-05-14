@@ -39,6 +39,6 @@ func (s *statisticsQueryService) Get(ID string) (data.Statistics, error) {
 		AlphabetSymbolsCount: statisticsValue.AlphabetSymbolsCount,
 		AllSymbolsCount:      statisticsValue.AllSymbolsCount,
 		IsDuplicate:          statisticsValue.IsDuplicate,
-		Rank:                 service.NewRankCalculator().Calculate(statisticsValue),
+		Rank:                 service.CalculateRank(statisticsValue),
 	}, nil
 }
