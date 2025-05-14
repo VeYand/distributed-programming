@@ -2,10 +2,12 @@ package transport
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html/template"
 	"log"
 	"net/http"
+	repo "valuator/pkg/infrastructure/redis/repository"
 
 	"valuator/pkg/app/query"
 	"valuator/pkg/app/service"
@@ -39,9 +41,13 @@ func (h *Handler) GetAddForm(w http.ResponseWriter, _ *http.Request) {
 }
 
 func (h *Handler) CalculateStatistics(w http.ResponseWriter, r *http.Request) {
-	id, err := h.textService.Add(r.FormValue("text"))
+	id, err := h.textService.Add(r.FormValue("region"), r.FormValue("text"))
 	if err != nil {
 		log.Printf("Error adding text: %v", err)
+		if errors.Is(err, repo.ErrInvalidRegion) {
+			http.Error(w, "Invalid region", http.StatusBadRequest)
+			return
+		}
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}

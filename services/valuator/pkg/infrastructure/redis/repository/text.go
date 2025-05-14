@@ -29,7 +29,7 @@ type textSerializable struct {
 	Count int    `json:"count"`
 }
 
-func (repository *textRepository) Store(text model.Text) error {
+func (repository *textRepository) Store(_ string, text model.Text) error {
 	return repository.storage.Set(context.Background(), fmt.Sprintf("text:%s", text.ID), textSerializable{
 		ID:    string(text.ID),
 		Value: text.Value,

@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
 	amqp2 "valuator/pkg/infrastructure/amqp"
 
 	"valuator/pkg/infrastructure/amqp/event"
@@ -17,13 +18,6 @@ import (
 	"valuator/pkg/infrastructure/redis/repository"
 	"valuator/pkg/infrastructure/transport"
 )
-
-func createRedisClient() *redis.Client {
-	return redis.NewClient(&redis.Options{
-		Addr:     "redis:6379",
-		Password: "12345Q",
-	})
-}
 
 func newRabbitMQClient() (*amqp2.RabbitMQClient, error) {
 	amqpURL := "amqp://guest:guest@rabbitmq:5672/"
@@ -43,10 +37,18 @@ func newRabbitMQClient() (*amqp2.RabbitMQClient, error) {
 	}, nil
 }
 
-func createHandler(rdb *redis.Client, rabbitMQClient *amqp2.RabbitMQClient) *transport.Handler {
+func createHandler(rabbitMQClient *amqp2.RabbitMQClient) *transport.Handler {
+	mainRdb := redis.NewClient(&redis.Options{Addr: os.Getenv("REDIS_MAIN_URL")})
+	shards := map[string]*redis.Client{
+		"RU":   redis.NewClient(&redis.Options{Addr: os.Getenv("REDIS_RU_URL")}),
+		"EU":   redis.NewClient(&redis.Options{Addr: os.Getenv("REDIS_EU_URL")}),
+		"ASIA": redis.NewClient(&redis.Options{Addr: os.Getenv("REDIS_ASIA_URL")}),
+	}
+
 	publisher := message.NewMessagePublisher(rabbitMQClient, "valuator_queue")
 	dispatcher := event.NewEventDispatcher(rabbitMQClient, "events", "valuator")
-	textRepo := repo.NewTextRepository(rdb)
+	shardManager := repo.NewShardManager(mainRdb, shards)
+	textRepo := repo.NewTextShardedRepository(shardManager)
 	textService := service.NewTextService(textRepo, publisher, dispatcher)
 	textQueryService := query.NewTextQueryService(textRepo)
 
@@ -71,8 +73,7 @@ func main() {
 	}
 	defer rabbitMQClient.Close()
 
-	rdb := createRedisClient()
-	handler := createHandler(rdb, rabbitMQClient)
+	handler := createHandler(rabbitMQClient)
 	router := setupRoutes(handler)
 
 	log.Println("Server is listening on port 8082")

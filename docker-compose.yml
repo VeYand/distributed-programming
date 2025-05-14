@@ -22,8 +22,13 @@ services:
       dockerfile: Dockerfile
     volumes:
       - ./services/valuator/data:/app/data
+    environment:
+      - REDIS_MAIN_URL=redis:6379
+      - REDIS_RU_URL=redis-ru:6379
+      - REDIS_EU_URL=redis-eu:6379
+      - REDIS_ASIA_URL=redis-asia:6379
     depends_on:
-      redis:
+      redis-main:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
@@ -37,8 +42,13 @@ services:
       dockerfile: Dockerfile
     volumes:
       - ./services/valuator/data:/app/data
+    environment:
+      - REDIS_MAIN_URL=redis:6379
+      - REDIS_RU_URL=redis-ru:6379
+      - REDIS_EU_URL=redis-eu:6379
+      - REDIS_ASIA_URL=redis-asia:6379
     depends_on:
-      redis:
+      redis-main:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
@@ -48,8 +58,13 @@ services:
   rank-calculator-1:
     container_name: rank-calculator-1
     build: ./services/rank-calculator
+    environment:
+      - REDIS_MAIN_URL=redis:6379
+      - REDIS_RU_URL=redis-ru:6379
+      - REDIS_EU_URL=redis-eu:6379
+      - REDIS_ASIA_URL=redis-asia:6379
     depends_on:
-      redis:
+      redis-main:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
@@ -59,8 +74,13 @@ services:
   rank-calculator-2:
     container_name: rank-calculator-2
     build: ./services/rank-calculator
+    environment:
+      - REDIS_MAIN_URL=redis:6379
+      - REDIS_RU_URL=redis-ru:6379
+      - REDIS_EU_URL=redis-eu:6379
+      - REDIS_ASIA_URL=redis-asia:6379
     depends_on:
-      redis:
+      redis-main:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
@@ -76,14 +96,62 @@ services:
     networks:
       - service-network
 
-  redis:
+  redis-main:
     image: redis:alpine
     container_name: redis
     ports:
       - "127.0.0.1:6379:6379"
     volumes:
       - redis_data:/data
-    command: redis-server --appendonly yes --requirepass 12345Q
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - service-network
+
+  redis-ru:
+    image: redis:alpine
+    container_name: redis-ru
+    ports:
+      - "127.0.0.1:6380:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - service-network
+
+  redis-eu:
+    image: redis:alpine
+    container_name: redis-eu
+    ports:
+      - "127.0.0.1:6381:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - service-network
+
+  redis-asia:
+    image: redis:alpine
+    container_name: redis-asia
+    ports:
+      - "127.0.0.1:6382:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
     healthcheck:
       test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s

@@ -12,6 +12,6 @@ type TextReadRepository interface {
 
 type TextRepository interface {
 	TextReadRepository
-	Store(text model.Text) error
+	Store(region string, text model.Text) error
 	Remove(text model.Text) error
 }

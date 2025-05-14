@@ -6,6 +6,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"log"
 	"net/http"
+	"os"
 	appmessage "rankcalculator/pkg/app/message"
 	"rankcalculator/pkg/app/query"
 	"rankcalculator/pkg/app/service"
@@ -58,8 +59,16 @@ func main() {
 	}
 	defer rabbitMQClient.Close()
 
+	mainRdb := redis.NewClient(&redis.Options{Addr: os.Getenv("REDIS_MAIN_URL")})
+	shards := map[string]*redis.Client{
+		"RU":   redis.NewClient(&redis.Options{Addr: os.Getenv("REDIS_RU_URL")}),
+		"EU":   redis.NewClient(&redis.Options{Addr: os.Getenv("REDIS_EU_URL")}),
+		"ASIA": redis.NewClient(&redis.Options{Addr: os.Getenv("REDIS_ASIA_URL")}),
+	}
+
 	eventDispatcher := event.NewEventDispatcher(rabbitMQClient, "events", "rankcalculator")
-	statisticsRepository := repo.NewStatisticsRepository(createRedisClient())
+	shardManager := repo.NewShardManager(mainRdb, shards)
+	statisticsRepository := repo.NewStatisticsShardedRepository(shardManager)
 	centrifugoClient := centrifugo.NewClient(
 		"http://centrifugo:8000/api/publish",
 		"_salt",

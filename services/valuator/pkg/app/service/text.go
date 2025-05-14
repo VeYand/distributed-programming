@@ -3,6 +3,8 @@ package service
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	stderrors "errors"
+	"valuator/pkg/app/errors"
 	"valuator/pkg/app/event"
 	"valuator/pkg/app/message"
 	"valuator/pkg/app/model"
@@ -10,7 +12,7 @@ import (
 )
 
 type TextService interface {
-	Add(value string) (string, error)
+	Add(region, value string) (string, error)
 }
 
 func NewTextService(repository repository.TextRepository, messagePublisher message.Publisher, eventDispatcher event.Dispatcher) TextService {
@@ -27,10 +29,10 @@ type textService struct {
 	eventDispatcher  event.Dispatcher
 }
 
-func (s *textService) Add(value string) (string, error) {
+func (s *textService) Add(region, value string) (string, error) {
 	text := s.createText(value)
 	existingTextModel, err := s.repository.Find(text.ID)
-	if err != nil {
+	if err != nil && !stderrors.Is(err, errors.ErrTextNotFound) {
 		return "", err
 	}
 	existingText, isPresent := existingTextModel.Get()
@@ -40,7 +42,7 @@ func (s *textService) Add(value string) (string, error) {
 		existingText = text
 	}
 
-	err = s.repository.Store(existingText)
+	err = s.repository.Store(region, existingText)
 	if err != nil {
 		return "", err
 	}

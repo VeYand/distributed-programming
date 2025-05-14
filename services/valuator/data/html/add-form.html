@@ -42,6 +42,16 @@
             border-color: #008CBA;
         }
 
+        select {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            background-color: #fff;
+            cursor: pointer;
+        }
+
         input[type="submit"] {
             background-color: #4CAF50;
             color: white;
@@ -65,6 +75,14 @@
         <label>
             <textarea name="text" rows="10" placeholder="Введите ваш текст здесь" required></textarea>
         </label>
+        <label for="country">Выберите страну:</label>
+        <select id="country" name="region" required>
+            <option value="RU">Россия</option>
+            <option value="EU">Франция</option>
+            <option value="EU">Германия</option>
+            <option value="ASIA">ОАЭ</option>
+            <option value="ASIA">Индия</option>
+        </select>
         <input type="submit" class="btn" value="Проанализировать">
     </form>
 </div>
