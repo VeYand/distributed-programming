@@ -18,13 +18,6 @@ import (
 	"rankcalculator/pkg/infrastructure/transport"
 )
 
-func createRedisClient() *redis.Client {
-	return redis.NewClient(&redis.Options{
-		Addr:     "redis:6379",
-		Password: "12345Q",
-	})
-}
-
 func newRabbitMQClient() (*amqpinf.RabbitMQClient, error) {
 	amqpURL := "amqp://guest:guest@rabbitmq:5672/"
 	conn, err := amqp.Dial(amqpURL)
