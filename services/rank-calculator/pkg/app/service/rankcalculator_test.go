@@ -4,6 +4,7 @@ import (
 	"github.com/mono83/maybe"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"math"
 	"testing"
 
 	"rankcalculator/pkg/app/data"
@@ -11,6 +12,8 @@ import (
 	"rankcalculator/pkg/app/model"
 	"rankcalculator/pkg/app/service"
 )
+
+const epsilon = 0.001
 
 type mockRepo struct {
 	mock.Mock
@@ -55,15 +58,16 @@ func TestRankCalculator_Calculate_TableDriven(t *testing.T) {
 		wantAll   int
 		wantAlpha int
 		wantDup   bool
+		wantRank  float64
 	}{
-		{"Латинские буквы", "abcdefXYZ", 1, 9, 9, false},
-		{"Кириллица", "абвгде", 2, 6, 6, true},
-		{"Только знаки/символы", "!@#$%", 1, 5, 0, false},
-		{"Смешанный текст (буквы/цифры/символы)", "a1!б2@", 3, 6, 2, true},
-		{"Пустая строка", "", 1, 0, 0, false},
-		{"Только пробелы и управляющие символы", "   \t\n", 1, 5, 0, false},
-		{"Emoji и буквы", "a😀b😂", 1, 4, 2, false},
-		{"Китайские иероглифы", "漢字テスト", 1, 5, 5, false},
+		{"Латинские буквы", "abcdefXYZ", 1, 9, 9, false, 0},
+		{"Кириллица", "абвгде", 2, 6, 6, true, 0},
+		{"Только знаки/символы", "!@#$%", 1, 5, 0, false, 1},
+		{"Смешанный текст (буквы/цифры/символы)", "a1!б2@", 3, 6, 2, true, 0.6666666666666667},
+		{"Пустая строка", "", 1, 0, 0, false, 0},
+		{"Только пробелы и управляющие символы", "   \t\n", 1, 5, 0, false, 1},
+		{"Emoji и буквы", "a😀b😂", 1, 4, 2, false, 0.5},
+		{"Китайские иероглифы", "漢字テスト", 1, 5, 5, false, 0},
 	}
 
 	for _, tc := range cases {
@@ -90,7 +94,7 @@ func TestRankCalculator_Calculate_TableDriven(t *testing.T) {
 				return ok && m["text_id"] == string(textID)
 			})).Return(nil).Once()
 
-			wantEvt := event.CreateRankCalculatedEvent(textID, service.CalculateRank(expectedStats))
+			wantEvt := event.CreateRankCalculatedEvent(textID, tc.wantRank)
 			md.On("Dispatch", wantEvt).Return(nil).Once()
 
 			svc := service.NewRankCalculator(mr, md, mc)
@@ -103,4 +107,9 @@ func TestRankCalculator_Calculate_TableDriven(t *testing.T) {
 			md.AssertExpectations(t)
 		})
 	}
+}
+
+func compareFloats(a, b float64) bool {
+	diff := math.Abs(a - b)
+	return diff <= epsilon
 }
