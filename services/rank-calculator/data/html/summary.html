@@ -134,7 +134,7 @@
             updateLoadingText('Проверка готовности результата...');
             fetchData(extractTextIdFromPath(window.location.href))
                 .catch(() => {
-                    initCentrifuge();
+                    initCentrifuge(); // TODO инициализировать перед fetch
                 });
         }
 
