@@ -12,6 +12,7 @@ services:
       - valuator-2
       - rank-calculator-1
       - rank-calculator-2
+      - user
     networks:
       - service-network
 
@@ -188,6 +189,40 @@ services:
       - "127.0.0.1:3000:3000"
     volumes:
       - ./services/centrifugo/config/config.json:/centrifugo/config.json
+    networks:
+      - service-network
+
+  user:
+    container_name: user
+    build:
+      context: ./services/user
+      dockerfile: Dockerfile
+    volumes:
+      - ./services/user/data:/app/data
+    environment:
+      - REDIS_USER_URL=redis-user:6379
+      - SESSION_SECRET=ultra_mega_super_secret_1238988366_numbers_ggg
+    depends_on:
+      redis-main:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - service-network
+
+  redis-user:
+    image: redis:alpine
+    container_name: redis-user
+    ports:
+      - "127.0.0.1:6378:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
     networks:
       - service-network
 
