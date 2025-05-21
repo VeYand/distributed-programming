@@ -12,26 +12,33 @@ import (
 )
 
 type TextService interface {
-	Add(region, value string) (string, error)
+	Add(authorID model.AuthorID, region, value string) (string, error)
 }
 
-func NewTextService(repository repository.TextRepository, messagePublisher message.Publisher, eventDispatcher event.Dispatcher) TextService {
+func NewTextService(
+	textRepository repository.TextRepository,
+	authorRepository repository.AuthorRepository,
+	messagePublisher message.Publisher,
+	eventDispatcher event.Dispatcher,
+) TextService {
 	return &textService{
-		repository:       repository,
+		textRepository:   textRepository,
+		authorRepository: authorRepository,
 		messagePublisher: messagePublisher,
 		eventDispatcher:  eventDispatcher,
 	}
 }
 
 type textService struct {
-	repository       repository.TextRepository
+	textRepository   repository.TextRepository
+	authorRepository repository.AuthorRepository
 	messagePublisher message.Publisher
 	eventDispatcher  event.Dispatcher
 }
 
-func (s *textService) Add(region, value string) (string, error) {
+func (s *textService) Add(authorID model.AuthorID, region, value string) (string, error) {
 	text := s.createText(value)
-	existingTextModel, err := s.repository.Find(text.ID)
+	existingTextModel, err := s.textRepository.Find(text.ID)
 	if err != nil && !stderrors.Is(err, errors.ErrTextNotFound) {
 		return "", err
 	}
@@ -42,7 +49,15 @@ func (s *textService) Add(region, value string) (string, error) {
 		existingText = text
 	}
 
-	err = s.repository.Store(region, existingText)
+	err = s.textRepository.Store(region, existingText)
+	if err != nil {
+		return "", err
+	}
+
+	err = s.authorRepository.Store(model.Author{
+		AuthorID: authorID,
+		TextID:   existingText.ID,
+	})
 	if err != nil {
 		return "", err
 	}

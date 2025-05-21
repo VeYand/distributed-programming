@@ -8,6 +8,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	query2 "rankcalculator/pkg/app/auth/query"
 	"rankcalculator/pkg/infrastructure/authentication"
 	"time"
 
@@ -73,7 +74,7 @@ func (h *Handler) GetStatisticsPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) GetStatisticsAPI(w http.ResponseWriter, r *http.Request) {
-	_, ok, err := h.authenticate(w, r)
+	userID, ok, err := h.authenticate(w, r)
 	if err != nil {
 		log.Printf("Error authenticating: %v", err)
 		return
@@ -85,7 +86,11 @@ func (h *Handler) GetStatisticsAPI(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	summary, err := h.statisticsQueryService.Get(id)
+	summary, err := h.statisticsQueryService.Get(userID, id)
+	if stderrors.Is(err, query2.ErrPermissionDenied) {
+		http.Error(w, "Permission denied", http.StatusForbidden)
+		return
+	}
 	if stderrors.Is(err, errors.ErrStatisticsNotFound) {
 		http.Error(w, "Not found", http.StatusNotFound)
 		return

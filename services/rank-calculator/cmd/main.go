@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	query2 "rankcalculator/pkg/app/auth/query"
 	appmessage "rankcalculator/pkg/app/message"
 	"rankcalculator/pkg/app/query"
 	"rankcalculator/pkg/app/service"
@@ -14,6 +15,7 @@ import (
 	"rankcalculator/pkg/infrastructure/amqp/event"
 	"rankcalculator/pkg/infrastructure/amqp/message"
 	"rankcalculator/pkg/infrastructure/authentication"
+	authentication2 "rankcalculator/pkg/infrastructure/authorization"
 	"rankcalculator/pkg/infrastructure/centrifugo"
 	"rankcalculator/pkg/infrastructure/redis/repository"
 	"rankcalculator/pkg/infrastructure/transport"
@@ -72,10 +74,13 @@ func main() {
 	rabbitHandler := message.NewHandler(messageHandler)
 	rabbitMQConsumer := message.NewRabbitMQConsumer(rabbitMQClient, rabbitHandler, "valuator_queue")
 
+	permissionChecker := authentication2.NewPermissionChecker(os.Getenv("VALUATOR_INTERNAL_URL"))
 	statisticsQueryService := query.NewStatisticsQueryService(statisticsRepository)
+	statisticsAuthQueryService := query2.NewAuthorizedStatisticsQueryService(statisticsQueryService, permissionChecker)
+
 	authChecker := authentication.NewClient(os.Getenv("USER_INTERNAL_URL"))
 
-	httpHandler := transport.NewHandler(statisticsQueryService, authChecker)
+	httpHandler := transport.NewHandler(statisticsAuthQueryService, authChecker)
 	router := setupRoutes(httpHandler)
 
 	err = rabbitMQConsumer.Subscribe()

@@ -9,7 +9,7 @@ import (
 )
 
 type StatisticsQueryService interface {
-	Get(ID string) (data.Statistics, error)
+	Get(userID, id string) (data.Statistics, error)
 }
 
 func NewStatisticsQueryService(statisticsReadRepository repository.StatisticsReadRepository) StatisticsQueryService {
@@ -22,8 +22,8 @@ type statisticsQueryService struct {
 	statisticsReadRepository repository.StatisticsReadRepository
 }
 
-func (s *statisticsQueryService) Get(ID string) (data.Statistics, error) {
-	stat, err := s.statisticsReadRepository.Find(model.TextID(ID))
+func (s *statisticsQueryService) Get(_, id string) (data.Statistics, error) {
+	stat, err := s.statisticsReadRepository.Find(model.TextID(id))
 	if err != nil {
 		return data.Statistics{}, err
 	}

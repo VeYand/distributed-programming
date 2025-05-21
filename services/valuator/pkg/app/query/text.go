@@ -8,7 +8,7 @@ import (
 )
 
 type TextQueryService interface {
-	Get(id string) (data.TextData, error)
+	Get(userID string, id string) (data.TextData, error)
 }
 
 func NewTextQueryService(textReadRepository repository.TextReadRepository) TextQueryService {
@@ -21,7 +21,7 @@ type textQueryService struct {
 	textReadRepository repository.TextReadRepository
 }
 
-func (s *textQueryService) Get(id string) (data.TextData, error) {
+func (s *textQueryService) Get(_ string, id string) (data.TextData, error) {
 	text, err := s.textReadRepository.Find(model.TextID(id))
 	if err != nil {
 		return data.TextData{}, err
