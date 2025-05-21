@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/gorilla/mux"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/redis/go-redis/v9"
@@ -22,7 +23,7 @@ import (
 )
 
 func newRabbitMQClient() (*amqpinf.RabbitMQClient, error) {
-	amqpURL := "amqp://guest:guest@rabbitmq:5672/"
+	amqpURL := fmt.Sprintf("amqp://%s:%s@rabbitmq:5672/", os.Getenv("RABBITMQ_USER"), os.Getenv("RABBITMQ_PASS"))
 	conn, err := amqp.Dial(amqpURL)
 	if err != nil {
 		return nil, err
@@ -55,11 +56,23 @@ func main() {
 	}
 	defer rabbitMQClient.Close()
 
-	mainRdb := redis.NewClient(&redis.Options{Addr: os.Getenv("REDIS_MAIN_URL")})
+	mainRdb := redis.NewClient(&redis.Options{
+		Addr:     os.Getenv("REDIS_MAIN_URL"),
+		Password: os.Getenv("REDIS_MAIN_PASSWORD"),
+	})
 	shards := map[string]*redis.Client{
-		"RU":   redis.NewClient(&redis.Options{Addr: os.Getenv("REDIS_RU_URL")}),
-		"EU":   redis.NewClient(&redis.Options{Addr: os.Getenv("REDIS_EU_URL")}),
-		"ASIA": redis.NewClient(&redis.Options{Addr: os.Getenv("REDIS_ASIA_URL")}),
+		"RU": redis.NewClient(&redis.Options{
+			Addr:     os.Getenv("REDIS_RU_URL"),
+			Password: os.Getenv("REDIS_RU_PASSWORD"),
+		}),
+		"EU": redis.NewClient(&redis.Options{
+			Addr:     os.Getenv("REDIS_EU_URL"),
+			Password: os.Getenv("REDIS_EU_PASSWORD"),
+		}),
+		"ASIA": redis.NewClient(&redis.Options{
+			Addr:     os.Getenv("REDIS_ASIA_URL"),
+			Password: os.Getenv("REDIS_ASIA_PASSWORD"),
+		}),
 	}
 
 	eventDispatcher := event.NewEventDispatcher(rabbitMQClient, "events", "rankcalculator")

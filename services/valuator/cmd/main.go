@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -24,7 +25,7 @@ import (
 )
 
 func newRabbitMQClient() (*amqp2.RabbitMQClient, error) {
-	amqpURL := "amqp://guest:guest@rabbitmq:5672/"
+	amqpURL := fmt.Sprintf("amqp://%s:%s@rabbitmq:5672/", os.Getenv("RABBITMQ_USER"), os.Getenv("RABBITMQ_PASS"))
 	conn, err := amqp.Dial(amqpURL)
 	if err != nil {
 		return nil, err
@@ -42,11 +43,23 @@ func newRabbitMQClient() (*amqp2.RabbitMQClient, error) {
 }
 
 func createHandler(rabbitMQClient *amqp2.RabbitMQClient) *transport.Handler {
-	mainRdb := redis.NewClient(&redis.Options{Addr: os.Getenv("REDIS_MAIN_URL")})
+	mainRdb := redis.NewClient(&redis.Options{
+		Addr:     os.Getenv("REDIS_MAIN_URL"),
+		Password: os.Getenv("REDIS_MAIN_PASSWORD"),
+	})
 	shards := map[string]*redis.Client{
-		"RU":   redis.NewClient(&redis.Options{Addr: os.Getenv("REDIS_RU_URL")}),
-		"EU":   redis.NewClient(&redis.Options{Addr: os.Getenv("REDIS_EU_URL")}),
-		"ASIA": redis.NewClient(&redis.Options{Addr: os.Getenv("REDIS_ASIA_URL")}),
+		"RU": redis.NewClient(&redis.Options{
+			Addr:     os.Getenv("REDIS_RU_URL"),
+			Password: os.Getenv("REDIS_RU_PASSWORD"),
+		}),
+		"EU": redis.NewClient(&redis.Options{
+			Addr:     os.Getenv("REDIS_EU_URL"),
+			Password: os.Getenv("REDIS_EU_PASSWORD"),
+		}),
+		"ASIA": redis.NewClient(&redis.Options{
+			Addr:     os.Getenv("REDIS_ASIA_URL"),
+			Password: os.Getenv("REDIS_ASIA_PASSWORD"),
+		}),
 	}
 
 	publisher := message.NewMessagePublisher(rabbitMQClient, "valuator_queue")

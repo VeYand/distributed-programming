@@ -15,7 +15,10 @@ import (
 )
 
 func createHandler() *transport.Handler {
-	rdb := redis.NewClient(&redis.Options{Addr: os.Getenv("REDIS_USER_URL")})
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     os.Getenv("REDIS_USER_URL"),
+		Password: os.Getenv("REDIS_USER_PASSWORD"),
+	})
 	userRepository := repo.NewUserRepository(rdb)
 	userService := service.NewUserService(userRepository)
 	userQueryService := query.NewUserQueryService(userRepository)
