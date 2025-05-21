@@ -81,14 +81,17 @@
             margin-bottom: 15px;
             display: none;
         }
+
         .switch-link {
             margin-top: 15px;
             font-size: 14px;
         }
+
         .switch-link a {
             color: #008CBA;
             text-decoration: none;
         }
+
         .switch-link a:hover {
             text-decoration: underline;
         }
@@ -99,7 +102,7 @@
 <div class="container">
     <h1>Вход в систему</h1>
     <div id="errorBox" class="error"></div>
-    <form id="signinForm" action="/signin" method="POST">
+    <form id="signinForm" action="/user/signin" method="POST">
         <div class="form-group">
             <label for="login">Логин</label>
             <input type="text" id="login" name="login" placeholder="Введите логин" required>
@@ -130,8 +133,8 @@
         })
             .then(response => {
                 if (!response.ok) {
-                    return response.json().then(err => {
-                        throw new Error(err.message || 'Ошибка авторизации');
+                    return response.text().then(text => {
+                        throw new Error(text || 'Ошибка авторизации');
                     });
                 }
                 return response.json();

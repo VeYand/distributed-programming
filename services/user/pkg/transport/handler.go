@@ -6,7 +6,6 @@ import (
 	"github.com/gorilla/sessions"
 	"html/template"
 	"log"
-	"net"
 	"net/http"
 	"user/pkg/app/model"
 	"user/pkg/app/query"
@@ -110,23 +109,27 @@ func (h *Handler) SignUp(w http.ResponseWriter, r *http.Request) {
 	h.authenticate(w, r, login, pass)
 }
 
+func (h *Handler) SignOut(w http.ResponseWriter, r *http.Request) {
+	sess, err := h.cookieStore.Get(r, sessionName)
+	if err != nil {
+		http.Error(w, "Сессии недоступны", http.StatusInternalServerError)
+		return
+	}
+	sess.Options.MaxAge = -1
+	if err := sess.Save(r, w); err != nil {
+		http.Error(w, "Не удалось завершить сессию", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	http.Redirect(w, r, "/user/signin", http.StatusSeeOther)
+}
+
 type AuthCheckResponse struct {
 	Authenticated bool         `json:"authenticated"`
 	UserID        model.UserID `json:"user_id,omitempty"`
 }
 
 func (h *Handler) CheckAuthHandler(w http.ResponseWriter, r *http.Request) {
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		log.Printf("Invalid RemoteAddr %q: %v", r.RemoteAddr, err)
-		http.Error(w, "Forbidden", http.StatusForbidden)
-		return
-	}
-	if host != "127.0.0.1" && host != "::1" {
-		http.Error(w, "Forbidden", http.StatusForbidden)
-		return
-	}
-
 	sess, err := h.cookieStore.Get(r, sessionName)
 	if err != nil {
 		log.Printf("Session store error: %v", err)

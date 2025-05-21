@@ -13,6 +13,7 @@ import (
 	amqpinf "rankcalculator/pkg/infrastructure/amqp"
 	"rankcalculator/pkg/infrastructure/amqp/event"
 	"rankcalculator/pkg/infrastructure/amqp/message"
+	"rankcalculator/pkg/infrastructure/authentication"
 	"rankcalculator/pkg/infrastructure/centrifugo"
 	"rankcalculator/pkg/infrastructure/redis/repository"
 	"rankcalculator/pkg/infrastructure/transport"
@@ -72,7 +73,9 @@ func main() {
 	rabbitMQConsumer := message.NewRabbitMQConsumer(rabbitMQClient, rabbitHandler, "valuator_queue")
 
 	statisticsQueryService := query.NewStatisticsQueryService(statisticsRepository)
-	httpHandler := transport.NewHandler(statisticsQueryService)
+	authChecker := authentication.NewClient(os.Getenv("USER_INTERNAL_URL"))
+
+	httpHandler := transport.NewHandler(statisticsQueryService, authChecker)
 	router := setupRoutes(httpHandler)
 
 	err = rabbitMQConsumer.Subscribe()

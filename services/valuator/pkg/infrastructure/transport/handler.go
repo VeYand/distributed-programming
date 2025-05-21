@@ -7,6 +7,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"valuator/pkg/infrastructure/authentication"
 	repo "valuator/pkg/infrastructure/redis/repository"
 
 	"valuator/pkg/app/query"
@@ -16,16 +17,27 @@ import (
 type Handler struct {
 	textService      service.TextService
 	textQueryService query.TextQueryService
+	authChecker      *authentication.Client
 }
 
-func NewHandler(textService service.TextService, textQueryService query.TextQueryService) *Handler {
+func NewHandler(textService service.TextService, textQueryService query.TextQueryService, authChecker *authentication.Client) *Handler {
 	return &Handler{
 		textService:      textService,
 		textQueryService: textQueryService,
+		authChecker:      authChecker,
 	}
 }
 
-func (h *Handler) GetAddForm(w http.ResponseWriter, _ *http.Request) {
+func (h *Handler) GetAddForm(w http.ResponseWriter, r *http.Request) {
+	_, ok, err := h.authenticate(w, r)
+	if err != nil {
+		log.Printf("Error authenticating: %v", err)
+		return
+	}
+	if !ok {
+		return
+	}
+
 	tmpl, err := template.ParseFiles("./data/html/add-form.html")
 	if err != nil {
 		log.Printf("Error parsing template: %v", err)
@@ -41,6 +53,15 @@ func (h *Handler) GetAddForm(w http.ResponseWriter, _ *http.Request) {
 }
 
 func (h *Handler) CalculateStatistics(w http.ResponseWriter, r *http.Request) {
+	_, ok, err := h.authenticate(w, r)
+	if err != nil {
+		log.Printf("Error authenticating: %v", err)
+		return
+	}
+	if !ok {
+		return
+	}
+
 	id, err := h.textService.Add(r.FormValue("region"), r.FormValue("text"))
 	if err != nil {
 		log.Printf("Error adding text: %v", err)
@@ -65,4 +86,17 @@ func (h *Handler) CalculateStatistics(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
+}
+
+func (h *Handler) authenticate(w http.ResponseWriter, r *http.Request) (string, bool, error) {
+	userID, ok, err := h.authChecker.IsAuthenticatedFromRequest(r)
+	if err != nil {
+		http.Error(w, "Auth service error: "+err.Error(), http.StatusInternalServerError)
+		return "", false, err
+	}
+	if !ok {
+		http.Redirect(w, r, "/user/signin", http.StatusSeeOther)
+		return "", false, nil
+	}
+	return userID, ok, nil
 }

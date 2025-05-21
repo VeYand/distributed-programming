@@ -65,16 +65,37 @@
             transform: scale(0.95);
         }
 
+        .btn-signout {
+            background-color: #D8000C;
+            color: white;
+        }
+        .btn-signout:hover {
+            background-color: #a3000a;
+        }
+        .btn-signout:active {
+            transform: scale(0.95);
+        }
+
         #preloader {
             font-size: 18px;
             color: #333;
             margin-bottom: 20px;
+        }
+
+        .top-bar {
+            width: 100%;
+            text-align: right;
+            margin-bottom: 10px;
         }
     </style>
     <script src="https://unpkg.com/centrifuge/dist/centrifuge.js"></script>
 </head>
 <body>
 <div class="container">
+    <div class="top-bar">
+        <button class="btn btn-signout" id="signoutBtn">Выйти</button>
+    </div>
+
     <h1>Цветников Валериан ПС-33</h1>
     <h1>Valuator - приложение помощник редактора</h1>
     <h2>Результаты обработки</h2>
@@ -88,6 +109,10 @@
     </a>
 </div>
 <script>
+    document.getElementById('signoutBtn').addEventListener('click', function () {
+        window.location.href = '/user/signout'
+    });
+
     const centrifugoUrl = "{{.CentrifugoURL}}";
     const channel = "{{.Channel}}";
     const processingId = "{{.ProcessingID}}";

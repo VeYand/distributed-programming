@@ -37,6 +37,7 @@ func setupPublicRoutes(handler *transport.Handler) *mux.Router {
 	router.HandleFunc("/user/signin", handler.SignIn).Methods("POST")
 	router.HandleFunc("/user/signup", handler.GetSignUpPage).Methods("GET")
 	router.HandleFunc("/user/signup", handler.SignUp).Methods("POST")
+	router.HandleFunc("/user/signout", handler.SignOut).Methods("GET", "POST")
 	return router
 }
 

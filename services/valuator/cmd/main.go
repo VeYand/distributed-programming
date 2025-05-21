@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	amqp2 "valuator/pkg/infrastructure/amqp"
+	"valuator/pkg/infrastructure/authentication"
 
 	"valuator/pkg/infrastructure/amqp/event"
 	"valuator/pkg/infrastructure/amqp/message"
@@ -51,8 +52,9 @@ func createHandler(rabbitMQClient *amqp2.RabbitMQClient) *transport.Handler {
 	textRepo := repo.NewTextShardedRepository(shardManager)
 	textService := service.NewTextService(textRepo, publisher, dispatcher)
 	textQueryService := query.NewTextQueryService(textRepo)
+	authChecker := authentication.NewClient(os.Getenv("USER_INTERNAL_URL"))
 
-	return transport.NewHandler(textService, textQueryService)
+	return transport.NewHandler(textService, textQueryService, authChecker)
 }
 
 func setupRoutes(handler *transport.Handler) *mux.Router {

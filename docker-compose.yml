@@ -28,6 +28,7 @@ services:
       - REDIS_RU_URL=redis-ru:6379
       - REDIS_EU_URL=redis-eu:6379
       - REDIS_ASIA_URL=redis-asia:6379
+      - USER_INTERNAL_URL=http://user:8081
     depends_on:
       redis-main:
         condition: service_healthy
@@ -48,6 +49,7 @@ services:
       - REDIS_RU_URL=redis-ru:6379
       - REDIS_EU_URL=redis-eu:6379
       - REDIS_ASIA_URL=redis-asia:6379
+      - USER_INTERNAL_URL=http://user:8081
     depends_on:
       redis-main:
         condition: service_healthy
@@ -64,6 +66,7 @@ services:
       - REDIS_RU_URL=redis-ru:6379
       - REDIS_EU_URL=redis-eu:6379
       - REDIS_ASIA_URL=redis-asia:6379
+      - USER_INTERNAL_URL=http://user:8081
     depends_on:
       redis-main:
         condition: service_healthy
@@ -80,6 +83,7 @@ services:
       - REDIS_RU_URL=redis-ru:6379
       - REDIS_EU_URL=redis-eu:6379
       - REDIS_ASIA_URL=redis-asia:6379
+      - USER_INTERNAL_URL=http://user:8081
     depends_on:
       redis-main:
         condition: service_healthy
