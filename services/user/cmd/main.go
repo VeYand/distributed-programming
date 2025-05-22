@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
 	"github.com/redis/go-redis/v9"
@@ -23,12 +24,17 @@ func createHandler() *transport.Handler {
 	userService := service.NewUserService(userRepository)
 	userQueryService := query.NewUserQueryService(userRepository)
 	userSession := session.NewUserSession(userQueryService)
-	cookieStore := sessions.NewCookieStore([]byte(os.Getenv("SESSION_SECRET")))
+
+	authKey, _ := base64.StdEncoding.DecodeString(os.Getenv("SESSION_AUTH_KEY"))
+	encKey, _ := base64.StdEncoding.DecodeString(os.Getenv("SESSION_ENC_KEY"))
+	cookieStore := sessions.NewCookieStore(authKey, encKey)
+
 	cookieStore.Options = &sessions.Options{
 		Path:     "/",
 		MaxAge:   86400 * 7,
 		HttpOnly: true,
 		Secure:   false, // true для HTTPS
+		SameSite: http.SameSiteStrictMode,
 	}
 
 	return transport.NewHandler(userService, userQueryService, userSession, cookieStore)

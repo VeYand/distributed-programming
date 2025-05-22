@@ -238,7 +238,8 @@ services:
     environment:
       - REDIS_USER_URL=redis-user:6379
       - REDIS_USER_PASSWORD=redis-user-pass
-      - SESSION_SECRET=ultra_mega_super_secret_1238988366_numbers_ggg
+      - SESSION_AUTH_KEY=hLZL0sfGF1X6e4od+bLd7M/8QifKzEnOukKnwRahxFs=
+      - SESSION_ENC_KEY=f4EGkLu7LDNjgLJww7tNbKcogB1lVWrFv5haX87/bNE=
     depends_on:
       redis-main:
         condition: service_healthy
