@@ -269,6 +269,8 @@ services:
     build:
       context: ./services/protokey
       dockerfile: Dockerfile
+    volumes:
+      - ./services/protokey/data:/app/data
     networks:
       - service-network
 

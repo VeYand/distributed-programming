@@ -4,6 +4,7 @@ import (
 	"github.com/gorilla/mux"
 	"log"
 	"net/http"
+	"os"
 	"protokey/pkg/app/service"
 	"protokey/pkg/infrastructure/storage"
 	"protokey/pkg/infrastructure/transport"
@@ -20,7 +21,12 @@ func setupRoutes(handler *transport.Handler) *mux.Router {
 }
 
 func main() {
-	store := storage.NewStore()
+	dataFile, ok := os.LookupEnv("DATA_FILE")
+	if !ok {
+		dataFile = "data/protokey.data"
+	}
+
+	store := storage.NewStore(storage.Config{DataFile: dataFile})
 	svc := service.NewProtoKeyService(store.CommandChan, store.ResponseChan)
 	httpHandler := transport.NewHandler(svc)
 	router := setupRoutes(httpHandler)
