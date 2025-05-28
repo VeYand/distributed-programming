@@ -191,6 +191,24 @@ services:
     networks:
       - service-network
 
+  protokey:
+    container_name: protokey
+    build:
+      context: ./services/protokey
+      dockerfile: Dockerfile
+    networks:
+      - service-network
+
+  protocli:
+    container_name: protocli
+    build:
+      context: ./services/protocli
+      dockerfile: Dockerfile
+    depends_on:
+      - protokey
+    networks:
+      - service-network
+
 networks:
   service-network:
 
