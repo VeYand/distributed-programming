@@ -1,10 +1,15 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"valuator/pkg/app/auth"
+	query2 "valuator/pkg/app/auth/query"
+	"valuator/pkg/app/provider"
 	amqp2 "valuator/pkg/infrastructure/amqp"
+	"valuator/pkg/infrastructure/authentication"
 
 	"valuator/pkg/infrastructure/amqp/event"
 	"valuator/pkg/infrastructure/amqp/message"
@@ -20,7 +25,7 @@ import (
 )
 
 func newRabbitMQClient() (*amqp2.RabbitMQClient, error) {
-	amqpURL := "amqp://guest:guest@rabbitmq:5672/"
+	amqpURL := fmt.Sprintf("amqp://%s:%s@rabbitmq:5672/", os.Getenv("RABBITMQ_USER"), os.Getenv("RABBITMQ_PASS"))
 	conn, err := amqp.Dial(amqpURL)
 	if err != nil {
 		return nil, err
@@ -38,24 +43,41 @@ func newRabbitMQClient() (*amqp2.RabbitMQClient, error) {
 }
 
 func createHandler(rabbitMQClient *amqp2.RabbitMQClient) *transport.Handler {
-	mainRdb := redis.NewClient(&redis.Options{Addr: os.Getenv("REDIS_MAIN_URL")})
+	mainRdb := redis.NewClient(&redis.Options{
+		Addr:     os.Getenv("REDIS_MAIN_URL"),
+		Password: os.Getenv("REDIS_MAIN_PASSWORD"),
+	})
 	shards := map[string]*redis.Client{
-		"RU":   redis.NewClient(&redis.Options{Addr: os.Getenv("REDIS_RU_URL")}),
-		"EU":   redis.NewClient(&redis.Options{Addr: os.Getenv("REDIS_EU_URL")}),
-		"ASIA": redis.NewClient(&redis.Options{Addr: os.Getenv("REDIS_ASIA_URL")}),
+		"RU": redis.NewClient(&redis.Options{
+			Addr:     os.Getenv("REDIS_RU_URL"),
+			Password: os.Getenv("REDIS_RU_PASSWORD"),
+		}),
+		"EU": redis.NewClient(&redis.Options{
+			Addr:     os.Getenv("REDIS_EU_URL"),
+			Password: os.Getenv("REDIS_EU_PASSWORD"),
+		}),
+		"ASIA": redis.NewClient(&redis.Options{
+			Addr:     os.Getenv("REDIS_ASIA_URL"),
+			Password: os.Getenv("REDIS_ASIA_PASSWORD"),
+		}),
 	}
 
 	publisher := message.NewMessagePublisher(rabbitMQClient, "valuator_queue")
 	dispatcher := event.NewEventDispatcher(rabbitMQClient, "events", "valuator")
 	shardManager := repo.NewShardManager(mainRdb, shards)
 	textRepo := repo.NewTextShardedRepository(shardManager)
-	textService := service.NewTextService(textRepo, publisher, dispatcher)
+	authorRepository := repo.NewAuthorShardedRepository(shardManager)
+	textService := service.NewTextService(textRepo, authorRepository, publisher, dispatcher)
 	textQueryService := query.NewTextQueryService(textRepo)
+	authorProvider := provider.NewAuthorProvider(authorRepository)
+	permissionChecker := auth.NewPermissionChecker(authorProvider)
+	authorizedTextQueryService := query2.NewAuthorizedTextQueryService(textQueryService, permissionChecker)
+	authChecker := authentication.NewClient(os.Getenv("USER_INTERNAL_URL"))
 
-	return transport.NewHandler(textService, textQueryService)
+	return transport.NewHandler(textService, authorizedTextQueryService, authChecker, permissionChecker)
 }
 
-func setupRoutes(handler *transport.Handler) *mux.Router {
+func setupPublicRoutes(handler *transport.Handler) *mux.Router {
 	router := mux.NewRouter()
 
 	router.HandleFunc("/text/calculate", handler.CalculateStatistics).Methods("POST")
@@ -63,6 +85,12 @@ func setupRoutes(handler *transport.Handler) *mux.Router {
 	router.HandleFunc("/text/add-form", handler.GetAddForm).Methods("GET")
 	router.HandleFunc("/", handler.GetAddForm).Methods("GET")
 
+	return router
+}
+
+func setupInternalRoutes(handler *transport.Handler) *mux.Router {
+	router := mux.NewRouter()
+	router.HandleFunc("/internal/permission/text", handler.CheckPermissions).Methods("GET")
 	return router
 }
 
@@ -74,10 +102,18 @@ func main() {
 	defer rabbitMQClient.Close()
 
 	handler := createHandler(rabbitMQClient)
-	router := setupRoutes(handler)
+	publicRouter := setupPublicRoutes(handler)
+	internalRouter := setupInternalRoutes(handler)
 
-	log.Println("Server is listening on port 8082")
-	if err := http.ListenAndServe(":8082", router); err != nil {
-		log.Fatalf("Could not start server: %v", err)
+	go func() {
+		log.Println("Main server started at :8082")
+		if err := http.ListenAndServe(":8082", publicRouter); err != nil {
+			log.Fatalf("Main server failed: %v", err)
+		}
+	}()
+
+	log.Println("Internal auth server started at :8081")
+	if err := http.ListenAndServe(":8081", internalRouter); err != nil {
+		log.Fatalf("Internal server failed: %v", err)
 	}
 }

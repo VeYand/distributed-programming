@@ -4,12 +4,14 @@ import (
 	appevent "eventslogger/pkg/app/event"
 	amqpinf "eventslogger/pkg/infrastructure/amqp"
 	"eventslogger/pkg/infrastructure/amqp/event"
+	"fmt"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"log"
+	"os"
 )
 
 func newRabbitMQClient() (*amqpinf.RabbitMQClient, error) {
-	amqpURL := "amqp://guest:guest@rabbitmq:5672/"
+	amqpURL := fmt.Sprintf("amqp://%s:%s@rabbitmq:5672/", os.Getenv("RABBITMQ_USER"), os.Getenv("RABBITMQ_PASS"))
 	conn, err := amqp.Dial(amqpURL)
 	if err != nil {
 		return nil, err

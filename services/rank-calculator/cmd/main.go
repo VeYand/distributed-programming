@@ -1,25 +1,29 @@
 package main
 
 import (
+	"fmt"
 	"github.com/gorilla/mux"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/redis/go-redis/v9"
 	"log"
 	"net/http"
 	"os"
+	query2 "rankcalculator/pkg/app/auth/query"
 	appmessage "rankcalculator/pkg/app/message"
 	"rankcalculator/pkg/app/query"
 	"rankcalculator/pkg/app/service"
 	amqpinf "rankcalculator/pkg/infrastructure/amqp"
 	"rankcalculator/pkg/infrastructure/amqp/event"
 	"rankcalculator/pkg/infrastructure/amqp/message"
+	"rankcalculator/pkg/infrastructure/authentication"
+	authentication2 "rankcalculator/pkg/infrastructure/authorization"
 	"rankcalculator/pkg/infrastructure/centrifugo"
 	"rankcalculator/pkg/infrastructure/redis/repository"
 	"rankcalculator/pkg/infrastructure/transport"
 )
 
 func newRabbitMQClient() (*amqpinf.RabbitMQClient, error) {
-	amqpURL := "amqp://guest:guest@rabbitmq:5672/"
+	amqpURL := fmt.Sprintf("amqp://%s:%s@rabbitmq:5672/", os.Getenv("RABBITMQ_USER"), os.Getenv("RABBITMQ_PASS"))
 	conn, err := amqp.Dial(amqpURL)
 	if err != nil {
 		return nil, err
@@ -52,11 +56,23 @@ func main() {
 	}
 	defer rabbitMQClient.Close()
 
-	mainRdb := redis.NewClient(&redis.Options{Addr: os.Getenv("REDIS_MAIN_URL")})
+	mainRdb := redis.NewClient(&redis.Options{
+		Addr:     os.Getenv("REDIS_MAIN_URL"),
+		Password: os.Getenv("REDIS_MAIN_PASSWORD"),
+	})
 	shards := map[string]*redis.Client{
-		"RU":   redis.NewClient(&redis.Options{Addr: os.Getenv("REDIS_RU_URL")}),
-		"EU":   redis.NewClient(&redis.Options{Addr: os.Getenv("REDIS_EU_URL")}),
-		"ASIA": redis.NewClient(&redis.Options{Addr: os.Getenv("REDIS_ASIA_URL")}),
+		"RU": redis.NewClient(&redis.Options{
+			Addr:     os.Getenv("REDIS_RU_URL"),
+			Password: os.Getenv("REDIS_RU_PASSWORD"),
+		}),
+		"EU": redis.NewClient(&redis.Options{
+			Addr:     os.Getenv("REDIS_EU_URL"),
+			Password: os.Getenv("REDIS_EU_PASSWORD"),
+		}),
+		"ASIA": redis.NewClient(&redis.Options{
+			Addr:     os.Getenv("REDIS_ASIA_URL"),
+			Password: os.Getenv("REDIS_ASIA_PASSWORD"),
+		}),
 	}
 
 	eventDispatcher := event.NewEventDispatcher(rabbitMQClient, "events", "rankcalculator")
@@ -71,8 +87,13 @@ func main() {
 	rabbitHandler := message.NewHandler(messageHandler)
 	rabbitMQConsumer := message.NewRabbitMQConsumer(rabbitMQClient, rabbitHandler, "valuator_queue")
 
+	permissionChecker := authentication2.NewPermissionChecker(os.Getenv("VALUATOR_INTERNAL_URL"))
 	statisticsQueryService := query.NewStatisticsQueryService(statisticsRepository)
-	httpHandler := transport.NewHandler(statisticsQueryService)
+	statisticsAuthQueryService := query2.NewAuthorizedStatisticsQueryService(statisticsQueryService, permissionChecker)
+
+	authChecker := authentication.NewClient(os.Getenv("USER_INTERNAL_URL"))
+
+	httpHandler := transport.NewHandler(statisticsAuthQueryService, authChecker)
 	router := setupRoutes(httpHandler)
 
 	err = rabbitMQConsumer.Subscribe()

@@ -8,6 +8,8 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	query2 "rankcalculator/pkg/app/auth/query"
+	"rankcalculator/pkg/infrastructure/authentication"
 	"time"
 
 	"rankcalculator/pkg/app/errors"
@@ -16,15 +18,26 @@ import (
 
 type Handler struct {
 	statisticsQueryService query.StatisticsQueryService
+	authChecker            *authentication.Client
 }
 
-func NewHandler(statisticsQueryService query.StatisticsQueryService) *Handler {
+func NewHandler(statisticsQueryService query.StatisticsQueryService, authChecker *authentication.Client) *Handler {
 	return &Handler{
 		statisticsQueryService: statisticsQueryService,
+		authChecker:            authChecker,
 	}
 }
 
 func (h *Handler) GetStatisticsPage(w http.ResponseWriter, r *http.Request) {
+	_, ok, err := h.authenticate(w, r)
+	if err != nil {
+		log.Printf("Error authenticating: %v", err)
+		return
+	}
+	if !ok {
+		return
+	}
+
 	vars := mux.Vars(r)
 	textID := vars["id"]
 	channel := "statistics#" + string(textID)
@@ -61,10 +74,23 @@ func (h *Handler) GetStatisticsPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) GetStatisticsAPI(w http.ResponseWriter, r *http.Request) {
+	userID, ok, err := h.authenticate(w, r)
+	if err != nil {
+		log.Printf("Error authenticating: %v", err)
+		return
+	}
+	if !ok {
+		return
+	}
+
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	summary, err := h.statisticsQueryService.Get(id)
+	summary, err := h.statisticsQueryService.Get(userID, id)
+	if stderrors.Is(err, query2.ErrPermissionDenied) {
+		http.Error(w, "Permission denied", http.StatusForbidden)
+		return
+	}
 	if stderrors.Is(err, errors.ErrStatisticsNotFound) {
 		http.Error(w, "Not found", http.StatusNotFound)
 		return
@@ -108,4 +134,17 @@ func generateCentrifugoToken(identifier string, channel string) string {
 	}
 
 	return signedToken
+}
+
+func (h *Handler) authenticate(w http.ResponseWriter, r *http.Request) (string, bool, error) {
+	userID, ok, err := h.authChecker.IsAuthenticatedFromRequest(r)
+	if err != nil {
+		http.Error(w, "Auth service error: "+err.Error(), http.StatusInternalServerError)
+		return "", false, err
+	}
+	if !ok {
+		http.Redirect(w, r, "/user/signin", http.StatusSeeOther)
+		return "", false, nil
+	}
+	return userID, ok, nil
 }

@@ -26,6 +26,29 @@
             text-align: center;
         }
 
+        .top-bar {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+        }
+
+        .btn-signout {
+            background-color: #D8000C;
+            color: white;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s ease, transform 0.2s ease-in-out;
+        }
+        .btn-signout:hover {
+            background-color: #a3000a;
+        }
+        .btn-signout:active {
+            transform: scale(0.95);
+        }
+
         h1 {
             color: #333;
         }
@@ -69,8 +92,13 @@
 </head>
 <body>
 <div class="container">
+    <div class="top-bar">
+        <button id="signoutBtn" class="btn-signout">Выйти</button>
+    </div>
+
     <h1>Цветников Валериан ПС-33</h1>
     <h1>Valuator - приложение помощник редактора</h1>
+
     <form action="/text/calculate" method="POST" id="addForm">
         <label>
             <textarea name="text" rows="10" placeholder="Введите ваш текст здесь" required></textarea>
@@ -86,7 +114,12 @@
         <input type="submit" class="btn" value="Проанализировать">
     </form>
 </div>
+
 <script>
+    document.getElementById('signoutBtn').addEventListener('click', function () {
+        window.location.href = '/user/signout'
+    });
+
     document.getElementById('addForm').addEventListener('submit', function (event) {
         event.preventDefault();
 

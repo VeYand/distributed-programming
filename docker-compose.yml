@@ -12,6 +12,7 @@ services:
       - valuator-2
       - rank-calculator-1
       - rank-calculator-2
+      - user
     networks:
       - service-network
 
@@ -23,10 +24,17 @@ services:
     volumes:
       - ./services/valuator/data:/app/data
     environment:
+      - RABBITMQ_USER=rabbitmquser
+      - RABBITMQ_PASS=rabbitmqpassword
       - REDIS_MAIN_URL=redis:6379
+      - REDIS_MAIN_PASSWORD=redis-main-pass
       - REDIS_RU_URL=redis-ru:6379
+      - REDIS_RU_PASSWORD=redis-ru-pass
       - REDIS_EU_URL=redis-eu:6379
+      - REDIS_EU_PASSWORD=redis-eu-pass
       - REDIS_ASIA_URL=redis-asia:6379
+      - REDIS_ASIA_PASSWORD=redis-asia-pass
+      - USER_INTERNAL_URL=http://user:8081
     depends_on:
       redis-main:
         condition: service_healthy
@@ -43,10 +51,17 @@ services:
     volumes:
       - ./services/valuator/data:/app/data
     environment:
+      - RABBITMQ_USER=rabbitmquser
+      - RABBITMQ_PASS=rabbitmqpassword
       - REDIS_MAIN_URL=redis:6379
+      - REDIS_MAIN_PASSWORD=redis-main-pass
       - REDIS_RU_URL=redis-ru:6379
+      - REDIS_RU_PASSWORD=redis-ru-pass
       - REDIS_EU_URL=redis-eu:6379
+      - REDIS_EU_PASSWORD=redis-eu-pass
       - REDIS_ASIA_URL=redis-asia:6379
+      - REDIS_ASIA_PASSWORD=redis-asia-pass
+      - USER_INTERNAL_URL=http://user:8081
     depends_on:
       redis-main:
         condition: service_healthy
@@ -59,10 +74,18 @@ services:
     container_name: rank-calculator-1
     build: ./services/rank-calculator
     environment:
+      - RABBITMQ_USER=rabbitmquser
+      - RABBITMQ_PASS=rabbitmqpassword
       - REDIS_MAIN_URL=redis:6379
+      - REDIS_MAIN_PASSWORD=redis-main-pass
       - REDIS_RU_URL=redis-ru:6379
+      - REDIS_RU_PASSWORD=redis-ru-pass
       - REDIS_EU_URL=redis-eu:6379
+      - REDIS_EU_PASSWORD=redis-eu-pass
       - REDIS_ASIA_URL=redis-asia:6379
+      - REDIS_ASIA_PASSWORD=redis-asia-pass
+      - USER_INTERNAL_URL=http://user:8081
+      - VALUATOR_INTERNAL_URL=http://valuator-1:8081
     depends_on:
       redis-main:
         condition: service_healthy
@@ -75,10 +98,18 @@ services:
     container_name: rank-calculator-2
     build: ./services/rank-calculator
     environment:
+      - RABBITMQ_USER=rabbitmquser
+      - RABBITMQ_PASS=rabbitmqpassword
       - REDIS_MAIN_URL=redis:6379
+      - REDIS_MAIN_PASSWORD=redis-main-pass
       - REDIS_RU_URL=redis-ru:6379
+      - REDIS_RU_PASSWORD=redis-ru-pass
       - REDIS_EU_URL=redis-eu:6379
+      - REDIS_EU_PASSWORD=redis-eu-pass
       - REDIS_ASIA_URL=redis-asia:6379
+      - REDIS_ASIA_PASSWORD=redis-asia-pass
+      - USER_INTERNAL_URL=http://user:8081
+      - VALUATOR_INTERNAL_URL=http://valuator-2:8081
     depends_on:
       redis-main:
         condition: service_healthy
@@ -90,6 +121,9 @@ services:
   eventslogger:
     container_name: eventslogger
     build: ./services/eventslogger
+    environment:
+      - RABBITMQ_USER=rabbitmquser
+      - RABBITMQ_PASS=rabbitmqpassword
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -103,9 +137,9 @@ services:
       - "127.0.0.1:6379:6379"
     volumes:
       - redis_data:/data
-    command: redis-server --appendonly yes
+    command: redis-server --appendonly yes --requirepass redis-main-pass
     healthcheck:
-      test: [ "CMD", "redis-cli", "ping" ]
+      test: [ "CMD", "redis-cli", "-a", "redis-main-pass", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -119,9 +153,9 @@ services:
       - "127.0.0.1:6380:6379"
     volumes:
       - redis_data:/data
-    command: redis-server --appendonly yes
+    command: redis-server --appendonly yes --requirepass redis-ru-pass
     healthcheck:
-      test: [ "CMD", "redis-cli", "ping" ]
+      test: [ "CMD", "redis-cli", "-a", "redis-ru-pass", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -135,9 +169,9 @@ services:
       - "127.0.0.1:6381:6379"
     volumes:
       - redis_data:/data
-    command: redis-server --appendonly yes
+    command: redis-server --appendonly yes --requirepass redis-eu-pass
     healthcheck:
-      test: [ "CMD", "redis-cli", "ping" ]
+      test: [ "CMD", "redis-cli", "-a", "redis-eu-pass", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -151,9 +185,9 @@ services:
       - "127.0.0.1:6382:6379"
     volumes:
       - redis_data:/data
-    command: redis-server --appendonly yes
+    command: redis-server --appendonly yes --requirepass redis-asia-pass
     healthcheck:
-      test: [ "CMD", "redis-cli", "ping" ]
+      test: [ "CMD", "redis-cli", "-a", "redis-asia-pass", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -164,6 +198,9 @@ services:
     image: mirror.gcr.io/rabbitmq:3.13.7
     container_name: rabbitmq
     hostname: rabbitmq
+    environment:
+      - RABBITMQ_DEFAULT_USER=rabbitmquser
+      - RABBITMQ_DEFAULT_PASS=rabbitmqpassword
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     ports:
@@ -188,6 +225,42 @@ services:
       - "127.0.0.1:3000:3000"
     volumes:
       - ./services/centrifugo/config/config.json:/centrifugo/config.json
+    networks:
+      - service-network
+
+  user:
+    container_name: user
+    build:
+      context: ./services/user
+      dockerfile: Dockerfile
+    volumes:
+      - ./services/user/data:/app/data
+    environment:
+      - REDIS_USER_URL=redis-user:6379
+      - REDIS_USER_PASSWORD=redis-user-pass
+      - SESSION_AUTH_KEY=hLZL0sfGF1X6e4od+bLd7M/8QifKzEnOukKnwRahxFs=
+      - SESSION_ENC_KEY=f4EGkLu7LDNjgLJww7tNbKcogB1lVWrFv5haX87/bNE=
+    depends_on:
+      redis-main:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - service-network
+
+  redis-user:
+    image: redis:alpine
+    container_name: redis-user
+    ports:
+      - "127.0.0.1:6378:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --requirepass redis-user-pass
+    healthcheck:
+      test: [ "CMD", "redis-cli", "-a", "redis-user-pass", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
     networks:
       - service-network
 

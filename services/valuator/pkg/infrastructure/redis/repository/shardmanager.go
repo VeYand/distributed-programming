@@ -53,8 +53,25 @@ func (m *ShardManager) Store(region string, textID model.TextID) error {
 	)
 }
 
-func (m *ShardManager) GetRepository(textID model.TextID) (repository.TextRepository, error) {
-	region, err := m.textRegionStorage.Get(context.Background(), fmt.Sprintf("text_region:%s", textID))
+func (m *ShardManager) GetTextRepository(textID model.TextID) (repository.TextRepository, error) {
+	shard, err := m.shardForTextID(textID)
+	if err != nil {
+		return nil, err
+	}
+	return NewTextRepository(shard), nil
+}
+
+func (m *ShardManager) GetAuthorRepository(textID model.TextID) (repository.AuthorRepository, error) {
+	shard, err := m.shardForTextID(textID)
+	if err != nil {
+		return nil, err
+	}
+	return NewAuthorRepository(shard), nil
+}
+
+func (m *ShardManager) shardForTextID(textID model.TextID) (*redis.Client, error) {
+	key := fmt.Sprintf("text_region:%s", textID)
+	region, err := m.textRegionStorage.Get(context.Background(), key)
 	if err != nil {
 		if stderrors.Is(err, redis.Nil) {
 			return nil, errors.ErrTextNotFound
@@ -72,7 +89,7 @@ func (m *ShardManager) GetRepository(textID model.TextID) (repository.TextReposi
 	log.Printf("LOOKUP: %s, %s", textID, region.Region)
 	fmt.Println()
 
-	return NewTextRepository(shard), nil
+	return shard, nil
 }
 
 func (m *ShardManager) getShard(region string) (*redis.Client, error) {

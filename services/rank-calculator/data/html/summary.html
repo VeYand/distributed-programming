@@ -65,16 +65,37 @@
             transform: scale(0.95);
         }
 
+        .btn-signout {
+            background-color: #D8000C;
+            color: white;
+        }
+        .btn-signout:hover {
+            background-color: #a3000a;
+        }
+        .btn-signout:active {
+            transform: scale(0.95);
+        }
+
         #preloader {
             font-size: 18px;
             color: #333;
             margin-bottom: 20px;
+        }
+
+        .top-bar {
+            width: 100%;
+            text-align: right;
+            margin-bottom: 10px;
         }
     </style>
     <script src="https://unpkg.com/centrifuge/dist/centrifuge.js"></script>
 </head>
 <body>
 <div class="container">
+    <div class="top-bar">
+        <button class="btn btn-signout" id="signoutBtn">Выйти</button>
+    </div>
+
     <h1>Цветников Валериан ПС-33</h1>
     <h1>Valuator - приложение помощник редактора</h1>
     <h2>Результаты обработки</h2>
@@ -88,10 +109,16 @@
     </a>
 </div>
 <script>
+    document.getElementById('signoutBtn').addEventListener('click', function () {
+        window.location.href = '/user/signout'
+    });
+
     const centrifugoUrl = "{{.CentrifugoURL}}";
     const channel = "{{.Channel}}";
     const processingId = "{{.ProcessingID}}";
     const centrifugoToken = "{{.CentrifugoToken}}";
+
+    let loadCentrifugo = true;
 
     const extractTextIdFromPath = (url) => {
         const urlObject = new URL(url);
@@ -139,6 +166,10 @@
         }
 
         function initCentrifuge() {
+            if (!loadCentrifugo) {
+                return
+            }
+
             const centrifuge = new Centrifuge(
                 centrifugoUrl,
                 {
@@ -150,7 +181,7 @@
             const subscription = centrifuge.newSubscription(channel);
 
             subscription.on('subscribing', function () {
-                updateLoadingText('Подключение к обновлениям в реальном времени...');
+                updateLoadingText('Ожидание готовности статистики по тексту...');
             });
 
             subscription.on('subscribed', function () {
@@ -199,7 +230,16 @@
                     if (response.ok) {
                         return response.json();
                     }
-                    throw new Error('Данные ещё не готовы');
+
+                    if (response.status === 403) {
+                        loadCentrifugo = false
+                        updateLoadingText('У вас нет доступа к этому тексту (ошибка 403)')
+                        throw new Error('У вас нет доступа к этому тексту (ошибка 403)');
+                    } else if (response.status === 404) {
+                        throw new Error('Данные ещё не готовы');
+                    } else {
+                        throw new Error('Ошибка при получении данных. Попробуйте позже.');
+                    }
                 })
                 .then(data => {
                     const resultsDiv = getResultsDiv()

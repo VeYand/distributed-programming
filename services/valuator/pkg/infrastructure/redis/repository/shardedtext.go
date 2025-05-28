@@ -17,7 +17,7 @@ type textShardedRepository struct {
 }
 
 func (repository *textShardedRepository) Find(id model.TextID) (maybe.Maybe[model.Text], error) {
-	repo, err := repository.shardManager.GetRepository(id)
+	repo, err := repository.shardManager.GetTextRepository(id)
 	if err != nil {
 		return maybe.Nothing[model.Text](), err
 	}
@@ -31,7 +31,7 @@ func (repository *textShardedRepository) Store(region string, text model.Text) e
 		return err
 	}
 
-	repo, err := repository.shardManager.GetRepository(text.ID)
+	repo, err := repository.shardManager.GetTextRepository(text.ID)
 	if err != nil {
 		return err
 	}
@@ -40,7 +40,7 @@ func (repository *textShardedRepository) Store(region string, text model.Text) e
 }
 
 func (repository *textShardedRepository) Remove(text model.Text) error {
-	repo, err := repository.shardManager.GetRepository(text.ID)
+	repo, err := repository.shardManager.GetTextRepository(text.ID)
 	if err != nil {
 		return err
 	}
