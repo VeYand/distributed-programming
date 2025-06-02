@@ -1,19 +1,15 @@
 package tests
 
 import (
-	"fmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/tebeka/selenium"
+	"lab9/common"
 	"lab9/config"
 	"lab9/pages"
-	"math"
 	"math/rand"
-	"strconv"
 	"testing"
 	"time"
 )
-
-const epsilon = 0.001
 
 func TestCalculateTextStatistics(t *testing.T) {
 	testCases := []TestCase{
@@ -126,7 +122,7 @@ func TestCalculateTextStatistics(t *testing.T) {
 		statistics, err := addTextPage.GetStatistics()
 		assert.NoError(t, err, "Ошибка при получении статистики")
 
-		err = assertEqualsStatistics(t, test.expectedStatistics, statistics)
+		err = common.AssertEqualsStatistics(t, test.expectedStatistics, statistics)
 		assert.NoError(t, err, "Ошибка при сравнении статистики")
 	}
 
@@ -135,32 +131,6 @@ func TestCalculateTextStatistics(t *testing.T) {
 		runTestForBrowser(t, "firefox", testCase, testFunc)
 	}
 	runTestForBrowser(t, "chrome", uniqueTextCase, testFunc)
-}
-
-func assertEqualsStatistics(t *testing.T, expected, actual config.Statistics) error {
-	equals, err := compareFloatsFromStrings(expected.Rank, actual.Rank)
-	if err != nil {
-		return err
-	}
-
-	assert.True(t, equals, fmt.Sprintf("Rank (%s) не соответствует ожидаемому (%s)", actual.Rank, expected.Rank))
-	assert.Equal(t, expected.IsDuplicate, actual.IsDuplicate, "IsDuplicate не соответствуют")
-	return nil
-}
-
-func compareFloatsFromStrings(aStr, bStr string) (bool, error) {
-	a, err := strconv.ParseFloat(aStr, 64)
-	if err != nil {
-		return false, fmt.Errorf("failed to parse first float '%s': %w", aStr, err)
-	}
-
-	b, err := strconv.ParseFloat(bStr, 64)
-	if err != nil {
-		return false, fmt.Errorf("failed to parse second float '%s': %w", bStr, err)
-	}
-
-	diff := math.Abs(a - b)
-	return diff <= epsilon, nil
 }
 
 const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
