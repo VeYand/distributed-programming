@@ -12,11 +12,11 @@ import (
 )
 
 type Store struct {
-	config          Config
-	CommandChan     chan service.Command
-	pendingCommands []service.Command
-	data            map[string]int
-	dataFileHandle  *os.File
+	config            Config
+	CommandChan       chan service.Command
+	processedCommands []service.Command
+	data              map[string]int
+	dataFileHandle    *os.File
 }
 
 func NewStore(config Config) *Store {
@@ -105,7 +105,7 @@ func (store *Store) runLoop() {
 			store.processCommand(cmd)
 
 		case <-ticker.C:
-			store.flushPendingCommands()
+			store.flushProcessedCommands()
 		}
 	}
 }
@@ -125,7 +125,7 @@ func (store *Store) processCommand(cmd service.Command) {
 
 func (store *Store) handleSetOperation(cmd service.Command) {
 	store.data[cmd.Key] = cmd.Value
-	store.pendingCommands = append(store.pendingCommands, cmd)
+	store.processedCommands = append(store.processedCommands, cmd)
 	cmd.Reply <- service.Response{Err: nil}
 }
 
@@ -152,13 +152,13 @@ func (store *Store) handleListKeysOperation(cmd service.Command) {
 	cmd.Reply <- service.Response{Keys: keys, Err: nil}
 }
 
-func (store *Store) flushPendingCommands() {
-	if store.dataFileHandle == nil || len(store.pendingCommands) == 0 {
+func (store *Store) flushProcessedCommands() {
+	if store.dataFileHandle == nil || len(store.processedCommands) == 0 {
 		return
 	}
 
 	writer := bufio.NewWriter(store.dataFileHandle)
-	for _, cmd := range store.pendingCommands {
+	for _, cmd := range store.processedCommands {
 		line, err := json.Marshal(struct {
 			Type  service.OperationType `json:"type"`
 			Key   string                `json:"key"`
@@ -190,5 +190,5 @@ func (store *Store) flushPendingCommands() {
 		_, _ = fmt.Fprintf(os.Stderr, "error flushing data file buffer: %v\n", err)
 	}
 
-	store.pendingCommands = store.pendingCommands[:0]
+	store.processedCommands = store.processedCommands[:0]
 }
