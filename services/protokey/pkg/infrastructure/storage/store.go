@@ -14,7 +14,6 @@ import (
 type Store struct {
 	config          Config
 	CommandChan     chan service.Command
-	ResponseChan    chan service.Response
 	pendingCommands []service.Command
 	data            map[string]int
 	dataFileHandle  *os.File
@@ -22,29 +21,29 @@ type Store struct {
 
 func NewStore(config Config) *Store {
 	store := &Store{
-		config:       config,
-		CommandChan:  make(chan service.Command),
-		ResponseChan: make(chan service.Response),
-		data:         make(map[string]int),
+		config:      config,
+		CommandChan: make(chan service.Command),
+		data:        make(map[string]int),
 	}
 
 	go store.initializeAndRun()
 	return store
 }
 
-func (s *Store) initializeAndRun() {
-	if err := s.loadFromDisk(); err != nil {
+func (store *Store) initializeAndRun() {
+	err := store.loadFromDisk()
+	if err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "warning: failed to load data file: %v\n", err)
 	}
 
-	s.openDataFileForAppend()
-	defer s.closeDataFile()
+	store.openDataFileForAppend()
+	defer store.closeDataFile()
 
-	s.runLoop()
+	store.runLoop()
 }
 
-func (s *Store) loadFromDisk() error {
-	filePath := filepath.Clean(s.config.DataFile)
+func (store *Store) loadFromDisk() error {
+	filePath := filepath.Clean(store.config.DataFile)
 	file, err := os.Open(filePath)
 	if os.IsNotExist(err) {
 		return nil
@@ -65,18 +64,18 @@ func (s *Store) loadFromDisk() error {
 			continue
 		}
 		if cmd.Type == service.SetOperation {
-			s.data[cmd.Key] = cmd.Value
+			store.data[cmd.Key] = cmd.Value
 		}
 	}
 
 	return scanner.Err()
 }
 
-func (s *Store) openDataFileForAppend() {
-	f, err := os.OpenFile(s.config.DataFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
+func (store *Store) openDataFileForAppend() {
+	f, err := os.OpenFile(store.config.DataFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
 
 	if os.IsNotExist(err) {
-		f, err = os.Create(s.config.DataFile)
+		f, err = os.Create(store.config.DataFile)
 	}
 
 	if err != nil {
@@ -84,83 +83,91 @@ func (s *Store) openDataFileForAppend() {
 		return
 	}
 
-	s.dataFileHandle = f
+	store.dataFileHandle = f
 }
 
-func (s *Store) closeDataFile() {
-	if s.dataFileHandle != nil {
-		_ = s.dataFileHandle.Close()
+func (store *Store) closeDataFile() {
+	if store.dataFileHandle != nil {
+		_ = store.dataFileHandle.Close()
 	}
 }
 
-func (s *Store) runLoop() {
+func (store *Store) runLoop() {
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 
 	for {
 		select {
-		case cmd, ok := <-s.CommandChan:
+		case cmd, ok := <-store.CommandChan:
 			if !ok {
 				return
 			}
-			s.processCommand(cmd)
+			store.processCommand(cmd)
 
 		case <-ticker.C:
-			s.flushPendingCommands()
+			store.flushPendingCommands()
 		}
 	}
 }
 
-func (s *Store) processCommand(cmd service.Command) {
+func (store *Store) processCommand(cmd service.Command) {
 	switch cmd.Type {
 	case service.SetOperation:
-		s.handleSetOperation(cmd)
+		store.handleSetOperation(cmd)
 	case service.GetOperation:
-		s.handleGetOperation(cmd)
+		store.handleGetOperation(cmd)
 	case service.ListKeysOperation:
-		s.handleListKeysOperation(cmd)
+		store.handleListKeysOperation(cmd)
 	default:
-		s.ResponseChan <- service.Response{Err: fmt.Errorf("unknown operation %d", cmd.Type)}
+		cmd.Reply <- service.Response{Err: fmt.Errorf("unknown operation %d", cmd.Type)}
 	}
 }
 
-func (s *Store) handleSetOperation(cmd service.Command) {
-	s.data[cmd.Key] = cmd.Value
-	s.pendingCommands = append(s.pendingCommands, cmd)
-	s.ResponseChan <- service.Response{Err: nil}
+func (store *Store) handleSetOperation(cmd service.Command) {
+	store.data[cmd.Key] = cmd.Value
+	store.pendingCommands = append(store.pendingCommands, cmd)
+	cmd.Reply <- service.Response{Err: nil}
 }
 
-func (s *Store) handleGetOperation(cmd service.Command) {
-	value, exists := s.data[cmd.Key]
+func (store *Store) handleGetOperation(cmd service.Command) {
+	value, exists := store.data[cmd.Key]
 
 	if !exists {
 		value = 0
 	}
 
-	s.ResponseChan <- service.Response{Value: value, Err: nil}
+	cmd.Reply <- service.Response{Value: value, Err: nil}
 }
 
-func (s *Store) handleListKeysOperation(cmd service.Command) {
+func (store *Store) handleListKeysOperation(cmd service.Command) {
+	prefix := cmd.Key
 	var keys []string
 
-	prefix := cmd.Key
-	for k := range s.data {
+	for k := range store.data {
 		if len(k) >= len(prefix) && k[:len(prefix)] == prefix {
 			keys = append(keys, k)
 		}
 	}
 
-	s.ResponseChan <- service.Response{Keys: keys, Err: nil}
+	cmd.Reply <- service.Response{Keys: keys, Err: nil}
 }
 
-func (s *Store) flushPendingCommands() {
-	if s.dataFileHandle == nil || len(s.pendingCommands) == 0 {
+func (store *Store) flushPendingCommands() {
+	if store.dataFileHandle == nil || len(store.pendingCommands) == 0 {
 		return
 	}
 
-	writer := bufio.NewWriter(s.dataFileHandle)
-	for _, cmd := range s.pendingCommands {
-		line, err := json.Marshal(cmd)
+	writer := bufio.NewWriter(store.dataFileHandle)
+	for _, cmd := range store.pendingCommands {
+		line, err := json.Marshal(struct {
+			Type  service.OperationType `json:"type"`
+			Key   string                `json:"key"`
+			Value int                   `json:"value"`
+		}{
+			Type:  cmd.Type,
+			Key:   cmd.Key,
+			Value: cmd.Value,
+		})
 		if err != nil {
 			_, _ = fmt.Fprintf(os.Stderr, "error marshaling command for persistence: %v\n", err)
 			continue
@@ -183,5 +190,5 @@ func (s *Store) flushPendingCommands() {
 		_, _ = fmt.Fprintf(os.Stderr, "error flushing data file buffer: %v\n", err)
 	}
 
-	s.pendingCommands = s.pendingCommands[:0]
+	store.pendingCommands = store.pendingCommands[:0]
 }

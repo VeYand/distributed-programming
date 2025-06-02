@@ -12,8 +12,7 @@ type Service interface {
 }
 
 type ProtoKeyService struct {
-	commands  chan Command
-	responses chan Response
+	commands chan Command
 }
 
 var (
@@ -21,8 +20,8 @@ var (
 	ErrBadRequest = errors.New("bad request")
 )
 
-func NewProtoKeyService(cmdCh chan Command, respCh chan Response) *ProtoKeyService {
-	return &ProtoKeyService{commands: cmdCh, responses: respCh}
+func NewProtoKeyService(cmdCh chan Command) *ProtoKeyService {
+	return &ProtoKeyService{commands: cmdCh}
 }
 
 func (service *ProtoKeyService) Set(key string, value int) error {
@@ -30,10 +29,17 @@ func (service *ProtoKeyService) Set(key string, value int) error {
 		return ErrBadRequest
 	}
 
-	service.commands <- Command{Type: SetOperation, Key: key, Value: value}
-	resp := <-service.responses
+	reply := make(chan Response, 1)
+	command := Command{
+		Type:  SetOperation,
+		Key:   key,
+		Value: value,
+		Reply: reply,
+	}
 
-	return resp.Err
+	service.commands <- command
+	response := <-reply
+	return response.Err
 }
 
 func (service *ProtoKeyService) Get(key string) (int, error) {
@@ -41,10 +47,16 @@ func (service *ProtoKeyService) Get(key string) (int, error) {
 		return 0, ErrBadRequest
 	}
 
-	service.commands <- Command{Type: GetOperation, Key: key}
-	resp := <-service.responses
+	reply := make(chan Response, 1)
+	command := Command{
+		Type:  GetOperation,
+		Key:   key,
+		Reply: reply,
+	}
 
-	return resp.Value, resp.Err
+	service.commands <- command
+	response := <-reply
+	return response.Value, response.Err
 }
 
 func (service *ProtoKeyService) Keys(prefix string) ([]string, error) {
@@ -52,8 +64,14 @@ func (service *ProtoKeyService) Keys(prefix string) ([]string, error) {
 		return nil, ErrBadRequest
 	}
 
-	service.commands <- Command{Type: ListKeysOperation, Key: prefix}
-	resp := <-service.responses
+	reply := make(chan Response, 1)
+	command := Command{
+		Type:  ListKeysOperation,
+		Key:   prefix,
+		Reply: reply,
+	}
 
-	return resp.Keys, resp.Err
+	service.commands <- command
+	response := <-reply
+	return response.Keys, response.Err
 }

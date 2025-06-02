@@ -12,6 +12,7 @@ type Command struct {
 	Type  OperationType
 	Key   string
 	Value int
+	Reply chan Response
 }
 
 type Response struct {
