@@ -27,7 +27,7 @@ func main() {
 	}
 
 	store := storage.NewStore(storage.Config{DataFile: dataFile})
-	svc := service.NewProtoKeyService(store.CommandChan, store.ResponseChan)
+	svc := service.NewProtoKeyService(store.CommandChan)
 	httpHandler := transport.NewHandler(svc)
 	router := setupRoutes(httpHandler)
 
